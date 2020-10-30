@@ -29,6 +29,7 @@ def block_erase(comm, block_size=4, start_addr="00", trig=False, echo=1):
     comm.send(cmd)
     if echo == 1:
         print(comm.response())
+    return 0
 
 
 def read(comm, opcode="0b", staddr="00", nbyte="100", echo=1):
@@ -89,7 +90,7 @@ def pmon_cfg(comm, dev_id=0, reset=0, avg=1, bus_tconv=0, shunt_tconv=5, mode=5)
     # print(resp.splitlines()[0])
 
 
-def board_cmd(comm, cmd_str, echo=0):
+def cmd(comm, cmd_str, echo=0):
     comm.send(cmd_str)
     if echo == 1:
         print(comm.response())
@@ -209,16 +210,16 @@ def erase_memory_block(comm, num_blocks=16, block_size=4):
         block_erase(comm, block_size=4, start_addr=bl_start_addr, trig=False)
 
     print('Block erase DONE\n')
-    # board_cmd('delay 100000')
-    board_cmd('delay 5000')
+    # cmd('delay 100000')
+    cmd(comm, 'delay 5000')
 
     # VERIFY if device was erased
     print('Verify blocks erased')
 
     for i in range(0, 2):
         addr = format(256 * i, 'X')
-        read(opcode='b', staddr=addr, nbyte='100')
+        read(comm, opcode='b', staddr=addr, nbyte='100')
 
 
 if __name__ == "__main__":
-    board_cmd('9f 2')
+    cmd('9f 2')

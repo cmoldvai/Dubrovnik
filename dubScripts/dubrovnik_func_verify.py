@@ -25,9 +25,9 @@ vcc = 3.0
 freq = 8          # chose 8 (8.25), 15 (14.67) or 30 (29.33)
 pmon_id = '5'
 
-# board_cmd(comm, 'freq ' + str(freq))
-du.board_cmd(comm, 'freq ' + str(freq))
-du.board_cmd(comm, 'dispmode w')
+# cmd(comm, 'freq ' + str(freq))
+du.cmd(comm, 'freq ' + str(freq))
+du.cmd(comm, 'dispmode w')
 
 # Read board configuration and reset the chip
 comm.send('config')
