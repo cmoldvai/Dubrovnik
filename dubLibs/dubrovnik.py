@@ -2,33 +2,82 @@
 import sys
 # import boardcom as comm
 
-
-def page_program(comm, start_addr="0", nbyte="10", pattern="caba0000 1"):
-    opcode = "02"
-    wel = "06;"
-    comm.send('pattern ' + pattern)
-    cmd_str = wel + " " + opcode + " " + start_addr + " " + nbyte + "; wait 0"
-    comm.send(cmd_str)
+pageSize = 0x100
 
 
-def block_erase(comm, block_size=4, start_addr="00", trig=False, echo=1):
-    if block_size == 4:
-        opcode = "20"
-    elif block_size == 32:
-        opcode = "52"
-    elif block_size == 64:
-        opcode = "D8"
-    else:
-        print("Invalid block size")
-        return -1
-    wel = "06"
-    if trig == True:
-        cmd = wel + "; trig 1; " + opcode + " " + start_addr + "; wait 0; trig 0; "
-    else:
-        cmd = wel + "; " + opcode + " " + start_addr + "; wait 0; "
+def page_program(comm, start_addr=0, nbyte=0, pattern='caba0000', increment='0'):
+    opcode = '02'
+    wel = '06;'
+    cmd = f'pattern {pattern} {increment}'
     comm.send(cmd)
-    if echo == 1:
-        print(comm.response())
+    cmd = f'{wel} {opcode} {start_addr:x} {nbyte:x}; wait 0'
+    # cmd = wel + " " + opcode + " " + start_addr + " " + nbyte + "; wait 0"
+    comm.send(cmd)
+
+
+def pattern_program(comm, start_addr=0, end_addr=0, pattern='caba0000', increment='0'):
+    cmd = f'pattern {pattern} {increment}'
+    comm.send(cmd)
+    opcode = '02'
+    wel = '06'
+    pageSize = 0x100
+    addr = start_addr
+    while addr < end_addr:
+        pageEnd = addr - (addr % pageSize) + pageSize
+        if pageEnd > end_addr:
+            pageEnd = end_addr
+        progSize = pageEnd - addr
+        cmd = f'{wel}; {opcode} {addr:x} {progSize:x}; wait 0'
+        print(cmd)
+        comm.send(cmd)
+        addr = pageEnd
+
+
+def data_program(comm, start_addr=0, end_addr=0):
+    opcode = '02'
+    wel = '06'
+    pageSize = 0x100
+    addr = start_addr
+    while addr < end_addr:
+        pageEnd = addr - (addr % pageSize) + pageSize
+        if pageEnd > end_addr:
+            pageEnd = end_addr
+        progSize = pageEnd - addr
+        cmd = f'{wel}; {opcode} {addr:x} {progSize:x}; wait 0'
+        comm.send(cmd)
+        addr = pageEnd
+
+
+def block_erase(comm, block_size=4, start_addr=0, num_blocks=1, trig=False, echo=0):
+    wel = '06'
+    kB = 0x400
+    blockSizeKB = block_size * kB
+    mask = ~(blockSizeKB - 1)    # pay attention: tricky
+    startAddr = start_addr & mask
+    print(f'{startAddr:x}')
+
+    if block_size == 4:
+        opcode = '20'
+    elif block_size == 32:
+        opcode = '52'
+    elif block_size == 64:
+        opcode = 'D8'
+    else:
+        print('Invalid block size')
+        return -1
+
+    addr = startAddr
+    for n in range(0, num_blocks):
+        if trig == True:
+            cmd = f'{wel}; trig 1;{opcode} {addr:x}; wait 0; trig 0'
+            # print(cmd)
+        else:
+            cmd = f'{wel}; {opcode} {addr:x}; wait 0'
+            print(cmd)
+        comm.send(cmd)
+        if echo == 1:
+            print(comm.response())
+        addr += blockSizeKB
     return 0
 
 

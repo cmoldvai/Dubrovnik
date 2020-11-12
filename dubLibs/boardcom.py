@@ -45,7 +45,7 @@ class Comm:
     """wrapper for communications interface
     """
 
-    def __init__(self, port, prompt=">>> ", icpause=None, baudrate=115200):
+    def __init__(self, port, prompt=">>>", icpause=None, baudrate=115200):
         """Initialize with:
         port - serial communication port, e.g., "COM3"
         prompt - match prompt, e.g., "Fusethat >>>"; default is ">>>"
@@ -157,6 +157,20 @@ class Comm:
         return self.cooked
 
     def responselines(self):
+        """Return raw response as list of lines.
+        Excludes original command and prompt after command.
+        """
+        resplines = []
+        for line in self.raw.splitlines():
+            resplines.append(line.strip())
+        if resplines[0] == self.cmdline:
+            resplines = resplines[1:]
+        if resplines[-1].startswith(self.prompt.strip()):
+            resplines = resplines[:-1]
+
+        return resplines
+
+    def resp(self):
         """Return raw response as list of lines.
         Excludes original command and prompt after command.
         """
