@@ -9,13 +9,50 @@ from serial.tools.list_ports import comports
 from dubLibs import boardcom
 
 
-def detect_ports(defaultPort):
+def find_ports():
     ports = serial.tools.list_ports.comports()
     portList = []
 
     # [portList.append(ports[i].device)
     # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
 
+    for i in range(len(ports)):
+        if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
+            portList.append(ports[i].device)
+
+    if portList == []:
+        print("No COM PORT detected")
+        sys.exit()
+
+    portList.sort()  # in-place sorting of the list
+
+    return portList  # return sorted port list
+
+
+def connect2port(comport):
+    try:
+        comm = boardcom.Comm(comport)
+    # except NameError:
+    #     # in case the automated port finder did not work, use default port
+    #     comport = "COM" + str(defaultPort)
+    #     comm = boardcom.Comm(comport)
+    except OSError:
+        # since the OS has reported an error, its best to stop.
+        print('Failed to connect to port: %s\n' % comport)
+        sys.exit()
+
+    print('Port: %s\n' % comport)
+    return comm
+
+
+def findport_autoconnect(defaultPort):
+    ports = serial.tools.list_ports.comports()
+    portList = []
+
+    # [portList.append(ports[i].device)
+    # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
+
+    # create a list of ports made y FTDI (IC used on Dubrvnik board)
     for i in range(len(ports)):
         if ports[i].manufacturer == 'FTDI':
             portList.append(ports[i].device)
