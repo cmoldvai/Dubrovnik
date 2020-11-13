@@ -22,7 +22,7 @@ def find_ports():
 
     if portList == []:
         print("No COM PORT detected")
-        sys.exit()
+        # sys.exit()
 
     portList.sort()  # in-place sorting of the list
 
@@ -41,7 +41,7 @@ def connect2port(comport):
         print('Failed to connect to port: %s\n' % comport)
         sys.exit()
 
-    print('Port: %s\n' % comport)
+    print('Port: %s' % comport)
     return comm
 
 
