@@ -1,2 +1,9 @@
 __pycache__
 test*
+dubGui/__pycache__
+dubLibs/__pycache__
+dubScripts/__pycache__
+dubGui/test*
+dubScripts/test*
+dubLibs/test*
+
