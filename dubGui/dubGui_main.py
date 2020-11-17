@@ -29,7 +29,7 @@ def saveState():
 
 
 root = Tk()
-root.title('Flash Operations')
+root.title('Dubrovnik TestBench')
 
 comm = boardcom.BoardComm()
 portList = comm.findPorts()

@@ -6,4 +6,6 @@ dubScripts/__pycache__
 dubGui/test*
 dubScripts/test*
 dubLibs/test*
+*.pkl
+*_standaloneOK.py
 

@@ -4,7 +4,6 @@ from tkinter import *
 from tkinter import ttk
 # from tkinter.messagebox import askretrycancel
 
-
 class SerComInterface(Frame):
 
     def __init__(self, parent=None, DEBUG=False):
@@ -38,12 +37,11 @@ class SerComInterface(Frame):
         self.btn2 = Button(self, width=12, text='Connect',
                            command=self.connectPort)
         self.btn2.grid(row=0, column=2, padx=10)
+        self.btn3 = Button(self, text='Save Config',
+                                command=self.saveConfig)
+        self.btn3.grid(row=0, column=3, padx=10, sticky=E)
 
         if self.DEBUG:
-            self.test_btn2 = Button(
-                self, text='Save Config', command=self.saveConfig)
-            self.test_btn2.grid(row=2, column=1, sticky=S)
-
             self.test_btn1 = Button(self, text='Testing', command=self.testing)
             self.test_btn1.grid(row=3, column=1, sticky=S)
 
@@ -93,6 +91,7 @@ class SerComInterface(Frame):
         f = open('dubrovnik.pkl', 'wb')
         pickle.dump(D, f)
         f.close()
+
 
 if __name__ == '__main__':
 
