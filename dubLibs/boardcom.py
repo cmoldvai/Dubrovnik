@@ -9,86 +9,18 @@ from serial.tools.list_ports import comports
 from dubLibs import boardcom
 
 
-def find_ports():
-    ports = serial.tools.list_ports.comports()
-    portList = []
-
-    # [portList.append(ports[i].device)
-    # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
-
-    for i in range(len(ports)):
-        if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
-            portList.append(ports[i].device)
-
-    if portList == []:
-        print("No COM PORT detected")
-        # sys.exit()
-
-    portList.sort()  # in-place sorting of the list
-
-    return portList  # return sorted port list
-
-
-def connect2port(comport):
-    try:
-        comm = boardcom.Comm(comport)
-    # except NameError:
-    #     # in case the automated port finder did not work, use default port
-    #     comport = "COM" + str(defaultPort)
-    #     comm = boardcom.Comm(comport)
-    except OSError:
-        # since the OS has reported an error, its best to stop.
-        print('Failed to connect to port: %s\n' % comport)
-        sys.exit()
-
-    print('Port: %s' % comport)
-    return comm
-
-
-def findport_autoconnect(defaultPort):
-    ports = serial.tools.list_ports.comports()
-    portList = []
-
-    # [portList.append(ports[i].device)
-    # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
-
-    # create a list of ports made y FTDI (IC used on Dubrvnik board)
-    for i in range(len(ports)):
-        if ports[i].manufacturer == 'FTDI':
-            portList.append(ports[i].device)
-
-    if portList == []:
-        print("No COM PORT detected")
-        sys.exit()
-
-    comport = portList[0]
-
-    try:
-        comm = boardcom.Comm(comport)
-    except NameError:
-        # in case the automated port finder did not work, use default port
-        comport = "COM" + str(defaultPort)
-        comm = boardcom.Comm(comport)
-    except OSError:
-        # since the OS has reported an error, its best to stop.
-        sys.exit()
-
-    print('Port: %s\n' % comport)
-    return comm
-
-
 # Keep reading from serial line until full prompt is seen
 class Comm:
     """wrapper for communications interface
     """
 
-    def __init__(self, port, prompt=">>>", icpause=None, baudrate=115200):
+    def __init__(self, prompt=">>>", icpause=None, baudrate=115200):
         """Initialize with:
         port - serial communication port, e.g., "COM3"
         prompt - match prompt, e.g., "Fusethat >>>"; default is ">>>"
         icpause - inter-character pause in seconds
         """
-        self.port = port
+        self.port = None
         self.prompt = prompt
         self.icpause = icpause
         self.baudrate = baudrate
@@ -101,11 +33,41 @@ class Comm:
         self.vrfyout = sys.stdout       # default verify-out
         self.vrfyprogress = False       # default verify report progress
 
+    def findPorts(self):
+        ports = serial.tools.list_ports.comports()
+        portList = []
+        # [portList.append(ports[i].device)
+        # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
+        for i in range(len(ports)):
+            if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
+                portList.append(ports[i].device)
+        if portList == []:
+            print("No COM PORT detected")
+            # sys.exit()
+        portList.sort()  # in-place sorting of the list
+        return portList  # return sorted port list
+
+    def connect(self, comport):
         try:
-            self.handle = serial.Serial(port, baudrate, timeout=60)
+            self.handle = serial.Serial(comport, self.baudrate, timeout=60)
+            print(self.handle)
         except serial.SerialException:
-            print("Error: cannot open", port)
-            raise IOError("cannot open " + port)
+            print("Error: cannot open", comport)
+            raise IOError("cannot open " + comport)
+
+        print('Port: %s' % comport)
+        return comport
+
+    def disconnect(self, comport):
+        if comport:
+            self.handle.close()
+            print(self.handle)
+
+    def autoConnect(self, defaultPort):
+        portList = self.find_ports()
+        if portList:
+            port = portList[0]
+            self.connect(port)
 
     def send(self, cm):
         """Send a command line 'cm' to serial port and await prescribed prompt.

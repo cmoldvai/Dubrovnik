@@ -3,50 +3,24 @@ from tkinter import *
 from dubLibs import boardcom
 from dubLibs import dubrovnik as du
 
+class Erase(Frame):
 
-class flashOps(Frame):
+    global comm
 
     def __init__(self, parent=None):
-        Frame.__init__(self, parent)  # do a superclass init
-        # Frame.config(self, relief=RAISED, bd=2)
-        self.pack()
+        LabelFrame.__init__(self, parent, text='Erase', padx=5, pady=5)
+        self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        # self.comm = None
         self.pageSize = 0x100
         self.blockSize = StringVar()
         self.startAddr = StringVar()
         self.numBlocks = StringVar()
         self.blockSizes = ['4', '32', '64', 'Chip']
-        self.makeframe_erase()
+        self.buildFrame()
         self.blockSize.set(self.blockSizes[0])
 
-    def blockErase(self):
-        blkSzStr = self.blockSize.get()
-
-        if blkSzStr == 'Chip':
-            print('Erasing entire chip')
-            comm.send('6; 60; wait 0')
-            print(comm.response())
-            print('Chip erase done.')
-        else:
-            # must be in else, otherwise it fails for 'Chip'
-            block_size = int(blkSzStr)
-            start_addr = int(self.startAddr.get(), 16)
-            # # Calculating the actual start addresses:
-            # mask = ~((block_size * 1024) - 1)  # pay attention: tricky
-            # actStartAddr = start_addr & mask
-            print(f'Start address = {start_addr:x}')
-            # print(f'Actual start address = {actStartAddr:x}')
-            numm_blocks = int(self.numBlocks.get())
-            print(f'Erasing {numm_blocks} {block_size}kB block(s)')
-            du.block_erase(comm, block_size=block_size,
-                           start_addr=start_addr, num_blocks=numm_blocks)
-            print('Block erase done.')
-
-        print('Elapsed time: {}ms')
-
-    def makeframe_erase(self):
+    def buildFrame(self):
         '''Makes a reusable frame for a flash erase operation'''
-        Label(self, text='Block Erase').grid(row=0, column=0)
-
         rb1 = Radiobutton(self, text='4kB', variable=self.blockSize,
                           value=self.blockSizes[0]).grid(row=1, column=0, padx=20, pady=5)
         rb2 = Radiobutton(self, text='32kB', variable=self.blockSize,
@@ -77,6 +51,31 @@ class flashOps(Frame):
         btn3 = Button(self, text='Quit', command=sys.exit).grid(
             row=5, column=3, padx=10, pady=10)
 
+    def blockErase(self):
+        blkSzStr = self.blockSize.get()
+
+        if blkSzStr == 'Chip':
+            print('Erasing entire chip')
+            comm.send('6; 60; wait 0')
+            print(comm.response())
+            print('Chip erase done.')
+        else:
+            # must be in else, otherwise it fails for 'Chip'
+            block_size = int(blkSzStr)
+            start_addr = int(self.startAddr.get(), 16)
+            # # Calculating the actual start addresses:
+            # mask = ~((block_size * 1024) - 1)  # pay attention: tricky
+            # actStartAddr = start_addr & mask
+            print(f'Start address = {start_addr:x}')
+            # print(f'Actual start address = {actStartAddr:x}')
+            numm_blocks = int(self.numBlocks.get())
+            print(f'Erasing {numm_blocks} {block_size}kB block(s)')
+            du.block_erase(comm, block_size=block_size,
+                           start_addr=start_addr, num_blocks=numm_blocks)
+            print('Block erase done.')
+
+        print('Elapsed time: {}ms')
+
     def message(self):
         self.data += 1
         print('Hello from world %s!' % self.data)
@@ -84,12 +83,11 @@ class flashOps(Frame):
 
 if __name__ == "__main__":
 
-    # Connecting to the board
-    # defaultPort = 5
-    # comm = boardcom.findport_autoconnect(defaultPort)
+    comm = boardcom.Comm()   # create an instance of class Comm
+    portList = comm.findPorts()
+    port = portList[0]
+    connectedPort = comm.connect(port)
 
-    portList = boardcom.find_ports()
-    defaultPort = portList[0]
-    comm = boardcom.connect2port(defaultPort)
-
-    flashOps().mainloop()
+    # Erase().mainloop()
+    Erase()
+    mainloop()
