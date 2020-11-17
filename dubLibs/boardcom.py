@@ -1,16 +1,19 @@
 """
 boardcom: Board Communications
+Implemented as a class providing access to:
+send(command)
+resp = response()
 """
 
 import sys
 import time
 import serial
 from serial.tools.list_ports import comports
-from dubLibs import boardcom
+from tkinter.messagebox import askretrycancel
 
 
 # Keep reading from serial line until full prompt is seen
-class Comm:
+class BoardComm:
     """wrapper for communications interface
     """
 
@@ -33,19 +36,39 @@ class Comm:
         self.vrfyout = sys.stdout       # default verify-out
         self.vrfyprogress = False       # default verify report progress
 
-    def findPorts(self):
-        ports = serial.tools.list_ports.comports()
+    # def findPorts(self):
+    #     ports = serial.tools.list_ports.comports()
+    #     portList = []
+    #     # [portList.append(ports[i].device)
+    #     # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
+    #     for i in range(len(ports)):
+    #         if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
+    #             portList.append(ports[i].device)
+    #     if portList == []:
+    #         print("No COM PORT detected")
+    #         # sys.exit()
+    #     portList.sort()  # in-place sorting of the list
+    #     return portList  # return sorted port list
+
+    def getPortList(self):
         portList = []
-        # [portList.append(ports[i].device)
-        # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
+        ports = serial.tools.list_ports.comports()
         for i in range(len(ports)):
             if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
                 portList.append(ports[i].device)
-        if portList == []:
-            print("No COM PORT detected")
-            # sys.exit()
+        return portList
+    
+    def findPorts(self):
+        portList = self.getPortList()
+        while portList == []:
+            if askretrycancel('Connection Failure','Connect a COM port. Retry?'):
+                portList = self.getPortList()
+            else:
+                sys.exit
+                break
         portList.sort()  # in-place sorting of the list
         return portList  # return sorted port list
+
 
     def connect(self, comport):
         try:

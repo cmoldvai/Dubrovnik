@@ -1,16 +1,14 @@
 import sys
 from tkinter import *
-from dubLibs import boardcom
 from dubLibs import dubrovnik as du
 
 class Erase(Frame):
 
-    global comm
-
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Erase', padx=5, pady=5)
         self.pack(side=TOP, anchor=NW, padx=10, pady=10)
-        # self.comm = None
+        self.DEBUG = DEBUG
+        self.comm = None
         self.pageSize = 0x100
         self.blockSize = StringVar()
         self.startAddr = StringVar()
@@ -48,16 +46,18 @@ class Erase(Frame):
 
         btn2 = Button(self, text='Erase',
                       command=self.blockErase).grid(row=5, column=0, padx=10, pady=10)
-        btn3 = Button(self, text='Quit', command=sys.exit).grid(
-            row=5, column=3, padx=10, pady=10)
+
+        if self.DEBUG:                      
+            quit_btn = Button(self, text='Quit', command=sys.exit)
+            quit_btn.grid(row=5, column=3, padx=10, pady=10)
 
     def blockErase(self):
         blkSzStr = self.blockSize.get()
 
         if blkSzStr == 'Chip':
             print('Erasing entire chip')
-            comm.send('6; 60; wait 0')
-            print(comm.response())
+            self.comm.send('6; 60; wait 0')
+            print(self.comm.response())
             print('Chip erase done.')
         else:
             # must be in else, otherwise it fails for 'Chip'
@@ -70,7 +70,7 @@ class Erase(Frame):
             # print(f'Actual start address = {actStartAddr:x}')
             numm_blocks = int(self.numBlocks.get())
             print(f'Erasing {numm_blocks} {block_size}kB block(s)')
-            du.block_erase(comm, block_size=block_size,
+            du.block_erase(self.comm, block_size=block_size,
                            start_addr=start_addr, num_blocks=numm_blocks)
             print('Block erase done.')
 
@@ -83,11 +83,13 @@ class Erase(Frame):
 
 if __name__ == "__main__":
 
-    comm = boardcom.Comm()   # create an instance of class Comm
+    from dubLibs import boardcom
+    
+    comm = boardcom.BoardComm()
     portList = comm.findPorts()
     port = portList[0]
     connectedPort = comm.connect(port)
-
-    # Erase().mainloop()
-    Erase()
+    Erase().comm = comm 
+    # Erase(DEBUG=True).comm = comm
+    
     mainloop()

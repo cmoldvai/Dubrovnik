@@ -1,33 +1,33 @@
 import sys
-import os
 import pickle
 from tkinter import *
-from dubLibs import boardcom
-from dubLibs import dubrovnik as du
 from tkinter import ttk
+# from tkinter.messagebox import askretrycancel
 
-class Connection(Frame):
 
-    global comm
+class SerComInterface(Frame):
 
-    def __init__(self, parent=None):
-        LabelFrame.__init__(self, parent, text='Connection', padx=5, pady=5)
+    def __init__(self, parent=None, DEBUG=False):
+        LabelFrame.__init__(
+            self, parent, text='Serial Connection', padx=5, pady=5)
         self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        self.DEBUG = DEBUG
+        self.comm = None                      # object created by boardcom
+        self.portStatus = 'disconnected'
+        self.selPort = ''  # ! keeps track of selected port, between calls
+        self.portList = []
+        self.chk_var = IntVar()
+        self.autoConnect = 0
         with open('dubrovnik.pkl', 'rb') as fname:
             cfg = pickle.load(fname)
             print(cfg)
             self.autoConnect = cfg['autoConnect']
-        self.DEBUG = True
-        self.comm = None                      # object created by boardcom
-        self.portStatus = 'disconnected'
-        # ! keeps track of selected port (keeps value between calls)
-        self.selPort = ''
-        self.portList = []
+        self.chk_var.get()
         self.buildFrame()
 
     def buildFrame(self):
         '''Makes a reusable frame for a connecting to Dubrovnik board'''
-        self.chk_var = IntVar()
+        # self.chk_var = IntVar()
         chk = Checkbutton(self, text='Auto connect', variable=self.chk_var)
         chk.grid(row=0, column=0)
         self.chk_var.set(self.autoConnect)
@@ -40,15 +40,15 @@ class Connection(Frame):
         self.btn2.grid(row=0, column=2, padx=10)
 
         if self.DEBUG:
-            self.test_btn2 = Button(self, text='Save Config', command=self.saveConfig)
-            self.test_btn2.grid(row=2,column=1,sticky=S)
+            self.test_btn2 = Button(
+                self, text='Save Config', command=self.saveConfig)
+            self.test_btn2.grid(row=2, column=1, sticky=S)
 
             self.test_btn1 = Button(self, text='Testing', command=self.testing)
-            self.test_btn1.grid(row=3,column=1,sticky=S)
+            self.test_btn1.grid(row=3, column=1, sticky=S)
 
             self.test_lbl = Label(self, text='debug messages')
-            self.test_lbl.grid(row=4,column=1,sticky=S)
-      
+            self.test_lbl.grid(row=4, column=1, sticky=S)
 
     def updtPortList(self):
         self.portList = self.comm.findPorts()
@@ -59,7 +59,7 @@ class Connection(Frame):
         if self.portStatus == 'disconnected':
             self.selPort = self.combo.get()
             # if disconnected, then connect to selected port
-            self.comm.connect(self.selPort) #TODO check if need assignment
+            self.comm.connect(self.selPort)  # TODO check if need assignment
             # change button label
             # two ways of doing it: config(text=) and dict['text']
             self.btn2.config(text='Disconnect')
@@ -76,9 +76,6 @@ class Connection(Frame):
         else:
             print('No such port. Try again!!!')
 
-    # def getPort(self):
-    #     return self.comm
-
     def disconnectPort(self, selPort):
         self.comm.disconnect(selPort)
         print("Port: %s disconnected" % selPort)
@@ -90,27 +87,24 @@ class Connection(Frame):
         # print(self.selPort)
 
     def saveConfig(self):
-        D = {'autoConnect': 1, 'comPort': 'COM5', 'selPort': 1}
+        chk_value = self.chk_var.get()
+        D = {'autoConnect': chk_value, 'comPort': 'COM5', 'selPort': 1}
+        print(D)
         f = open('dubrovnik.pkl', 'wb')
         pickle.dump(D, f)
         f.close()
 
-
 if __name__ == '__main__':
-    # root = Tk()
-    # root.geometry('400x150')
-    # frm = LabelFrame(root, text='Connect').pack(side=BOTTOM, anchor=NW)
-    print(os.getcwd())
-    
-    # comm = boardcom.Comm()   # create an instance of class Comm
-    # portList = comm.findPorts()
-    # port = portList[0]
-    # connectedPort = comm.connect(port)
 
-    # Connection().mainloop()
-    con = Connection()
-    comm = boardcom.Comm()
+    from dubLibs import boardcom
+
+    # serCom = SerComInterface()
+    serCom = SerComInterface(DEBUG=True)
+    comm = boardcom.BoardComm()  # create an instance of class Comm
     portList = comm.findPorts()
-    con.combo.set(portList[0])
-    con.comm = comm
+    serCom.combo.set(portList[0])
+    serCom.comm = comm
+    if serCom.autoConnect:
+        serCom.connectPort()
+
     mainloop()

@@ -1,6 +1,4 @@
-import sys
 from tkinter import *
-from dubLibs import boardcom
 from dubLibs import dubrovnik as du
 
 
@@ -11,15 +9,16 @@ class Program(Frame):
     endAddr = 0
     pattn = 'cafe0000'
     incr = '1'
-    global comm
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Program', padx=5, pady=5)
         self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        self.DEBUG = DEBUG
         self.start_addr = StringVar()
         self.length = StringVar()
         self.pattern = StringVar()
         self.increment = StringVar()
+        self.comm = None
         self.buildFrame()
 
     def buildFrame(self):
@@ -50,8 +49,9 @@ class Program(Frame):
         btn3 = Button(self, text='Program', command=self.program).grid(
             row=5, column=1, padx=10, pady=10)
 
-        btn4 = Button(self, text='Quit', command=sys.exit).grid(
-            row=5, column=2, padx=10, pady=10)
+        if self.DEBUG:
+            quit_btn = Button(self, text='Quit', command=sys.exit)
+            quit_btn.grid(row=5, column=2, padx=10, pady=10)
 
     def get_states(self):
         global startAddr
@@ -69,7 +69,7 @@ class Program(Frame):
         self.get_states()
         print('startAddr: %x, dataLen: %x, pattn: %s, incr: %s' %
               (startAddr, dataLen, pattn, incr))
-        du.pattern_program(comm, startAddr, dataLen, pattn, incr)
+        du.pattern_program(self.comm, startAddr, dataLen, pattn, incr)
         print('programming done.')
 
     def message(self):
@@ -83,12 +83,14 @@ class Program(Frame):
 
 if __name__ == "__main__":
 
-    comm = boardcom.Comm()   # create an instance of class Comm
+    from dubLibs import boardcom
+
+    comm = boardcom.BoardComm()   # create an instance of class Comm
     portList = comm.findPorts()
     port = portList[0]
     connectedPort = comm.connect(port)
 
-    # Program().mainloop()
-    i_prog = Program()  # create and instance of class Program() (debug only: not needed)
+    Program().comm = comm  # assign to self.comm in Program class
+    # Program(DEBUG=True).comm = comm
 
     mainloop()
