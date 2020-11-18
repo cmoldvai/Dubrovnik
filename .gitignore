@@ -3,9 +3,9 @@ test*
 dubGui/__pycache__
 dubLibs/__pycache__
 dubScripts/__pycache__
+dubGui/dubGuiDev
 dubGui/test*
 dubScripts/test*
 dubLibs/test*
 *.pkl
 *_standaloneOK.py
-
