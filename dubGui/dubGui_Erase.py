@@ -5,7 +5,7 @@ from dubLibs import dubrovnik as du
 class Erase(Frame):
 
     def __init__(self, parent=None, DEBUG=False):
-        LabelFrame.__init__(self, parent, text='Erase', padx=5, pady=5)
+        LabelFrame.__init__(self, parent, text='Erase', relief=GROOVE, padx=10, pady=10)
         self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.comm = None
@@ -17,39 +17,43 @@ class Erase(Frame):
         self.buildFrame()
         self.blockSize.set(self.blockSizes[0])
 
-    def buildFrame(self):
+    def buildFrame(self, parent=None):
         '''Makes a reusable frame for a flash erase operation'''
-        rb1 = Radiobutton(self, text='4kB', variable=self.blockSize,
-                          value=self.blockSizes[0]).grid(row=1, column=0, padx=20, pady=5)
-        rb2 = Radiobutton(self, text='32kB', variable=self.blockSize,
-                          value=self.blockSizes[1]).grid(row=1, column=1, padx=20, pady=5)
-        rb3 = Radiobutton(self, text='64kB', variable=self.blockSize,
-                          value=self.blockSizes[2]).grid(row=1, column=2, padx=20, pady=5)
-        rb4 = Radiobutton(self, text='Chip', variable=self.blockSize,
-                          value=self.blockSizes[3]).grid(row=1, column=3, padx=20, pady=5)
+        # ersfrm = LabelFrame(self, parent).pack(side=LEFT, anchor=NW, padx=10,pady=10)
+        rb1 = Radiobutton(self, text='4kB', variable=self.blockSize, value=self.blockSizes[0])
+        rb1.grid(row=0, column=0, padx=10, pady=2)
+        rb2 = Radiobutton(self, text='32kB', variable=self.blockSize, value=self.blockSizes[1])
+        rb2.grid(row=1, column=0, padx=10, pady=2)
+        rb3 = Radiobutton(self, text='64kB', variable=self.blockSize, value=self.blockSizes[2])
+        rb3.grid(row=2, column=0, padx=10, pady=2)
+        rb4 = Radiobutton(self, text='Chip', variable=self.blockSize, value=self.blockSizes[3])
+        rb4.grid(row=3, column=0, padx=10, pady=2)
 
-        lbl = Label(self, text='Start Address:  0x').grid(
-            row=2, column=0, padx=0, pady=2, sticky=E)
-        ent1 = Entry(self, textvariable=self.startAddr).grid(
-            row=2, column=1, sticky=W)
+        lbl = Label(self, text='Start Address:  0x')
+        lbl.grid(row=0, column=1, padx=10, pady=2, sticky=E)
+        ent1 = Entry(self, textvariable=self.startAddr)
+        ent1.grid(row=0, column=2, sticky=W)
+
         self.startAddr.set('0')
 
-        lbl2 = Label(self, text='Number of Blocks:  0x').grid(
-            row=3, column=0, padx=0, pady=2, sticky=E)
-        ent2 = Entry(self, textvariable=self.numBlocks).grid(
-            row=3, column=1, sticky=W)
+        lbl2 = Label(self, text='Num. Blocks:  0x')
+        lbl2.grid(row=1, column=1, padx=10, pady=2, sticky=E)
+        ent2 = Entry(self, textvariable=self.numBlocks)
+        ent2.grid(row=1, column=2, sticky=W)
+        
         self.numBlocks.set('3')
 
-        lbl3 = Label(self, text='Length:  0x').grid(
-            row=4, column=0, padx=0, pady=2, sticky=E)
-        lbl4 = Label(self, text='Result here').grid(row=4, column=1, sticky=W)
+        # lbl3 = Label(self, text='Length:  0x').grid(
+        #     row=4, column=0, padx=0, pady=2, sticky=E)
+        # lbl4 = Label(self, text='Results here:')
+        # lbl4.grid(row=4, column=0, sticky=E)
 
-        btn2 = Button(self, text='Erase',
-                      command=self.blockErase).grid(row=5, column=0, padx=10, pady=10)
+        btn2 = Button(self, text='Erase', width=12, justify='center', command=self.blockErase)
+        btn2.grid(row=3, column=2, padx=2, pady=2)
 
         if self.DEBUG:                      
-            quit_btn = Button(self, text='Quit', command=sys.exit)
-            quit_btn.grid(row=5, column=3, padx=10, pady=10)
+            quit_btn = Button(self, text='Quit', width=12, command=sys.exit)
+            quit_btn.grid(row=3, column=1, padx=2, pady=2)
 
     def blockErase(self):
         blkSzStr = self.blockSize.get()
@@ -89,7 +93,7 @@ if __name__ == "__main__":
     portList = comm.findPorts()
     port = portList[0]
     connectedPort = comm.connect(port)
-    Erase().comm = comm 
-    # Erase(DEBUG=True).comm = comm
+    # Erase().comm = comm 
+    Erase(DEBUG=True).comm = comm
     
     mainloop()

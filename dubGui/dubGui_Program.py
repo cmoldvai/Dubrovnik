@@ -23,34 +23,34 @@ class Program(Frame):
 
     def buildFrame(self):
         '''Makes a reusable frame for a flash program operation'''
-        lbl1 = Label(self, text='Pattern: 0x').grid(
+        pat_lbl = Label(self, text='Pattern: 0x').grid(
             row=1, column=0, padx=5, pady=5, sticky=E)
-        ent1 = Entry(self, textvariable=self.pattern).grid(row=1, column=1)
+        pat_ent = Entry(self, textvariable=self.pattern).grid(row=1, column=1)
         self.pattern.set('caba0000')
 
-        lbl2 = Label(self, text='Increment: 0x').grid(
+        incr_lbl = Label(self, text='Increment: 0x').grid(
             row=2, column=0, padx=5, pady=5, sticky=E)
-        ent2 = Entry(self, textvariable=self.increment).grid(row=2, column=1)
+        incr_ent = Entry(self, textvariable=self.increment).grid(row=2, column=1)
         self.increment.set('1')
 
-        lbl3 = Label(self, text='Start Address: 0x').grid(
+        sa_lbl = Label(self, text='Start Address: 0x').grid(
             row=3, column=0, padx=5, pady=5, sticky=E)
-        ent3 = Entry(self, textvariable=self.start_addr).grid(row=3, column=1)
+        sa_ent = Entry(self, textvariable=self.start_addr).grid(row=3, column=1)
         self.start_addr.set('60')
 
-        lbl4 = Label(self, text='Length: 0x').grid(
+        len_lbl = Label(self, text='Length: 0x').grid(
             row=4, column=0, padx=5, pady=5, sticky=E)
-        ent4 = Entry(self, textvariable=self.length).grid(row=4, column=1)
+        len_ent = Entry(self, textvariable=self.length).grid(row=4, column=1)
         self.length.set('250')
 
-        btn2 = Button(self, text='Message', command=self.message).grid(
-            row=5, column=0, padx=10, pady=10)
-
-        btn3 = Button(self, text='Program', command=self.program).grid(
+        prog_btn = Button(self, text='Program', width=10, command=self.program).grid(
             row=5, column=1, padx=10, pady=10)
 
         if self.DEBUG:
-            quit_btn = Button(self, text='Quit', command=sys.exit)
+            msg_btn = Button(self, text='Message', width=10, command=self.message).grid(
+            row=5, column=0, padx=10, pady=10)
+            
+            quit_btn = Button(self, text='Quit', width=10, command=sys.exit)
             quit_btn.grid(row=5, column=2, padx=10, pady=10)
 
     def get_states(self):
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     port = portList[0]
     connectedPort = comm.connect(port)
 
-    Program().comm = comm  # assign to self.comm in Program class
-    # Program(DEBUG=True).comm = comm
+    # Program().comm = comm  # assign to self.comm in Program class
+    Program(DEBUG=True).comm = comm
 
     mainloop()

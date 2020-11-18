@@ -10,10 +10,9 @@ import json
 from tkinter import *
 from dubLibs import boardcom
 from dubLibs import dubrovnik as du
-import dubGui_Erase
-import dubGui_Program
-import dubGui_Connection
-
+import dubGui.dubGui_Erase as ers
+import dubGui.dubGui_Program as prg 
+import dubGui.dubGui_Connection as con
 
 def saveState():
     D = {'autoConnect': str(serCom.chk_var.get()),
@@ -34,28 +33,35 @@ root.title('Dubrovnik TestBench')
 comm = boardcom.BoardComm()
 portList = comm.findPorts()
 
-serCom = dubGui_Connection.SerComInterface(root)  # invoking the class
+serCom = con.SerCom(root, DEBUG=True)  # invoking the class
 serCom.config(bd=2, relief=GROOVE)
 serCom.pack(side=TOP, fill=BOTH)
 serCom.combo.set(portList[0])
 serCom.comm = comm
 
-erase = dubGui_Erase.Erase(root)  # invoking the class
+erase = ers.Erase(root, DEBUG=True)  # invoking the class
 erase.config(bd=2, relief=GROOVE)
 erase.pack(side=TOP, fill=BOTH)
 erase.comm = comm     # initializeing self.com in Erase class
 
-program = dubGui_Program.Program(root)  # invoking the class
+program = prg.Program(root)  # invoking the class
 program.config(bd=2, relief=GROOVE)
 program.pack(side=TOP, fill=BOTH)
 program.comm = comm   # initializeing self.com in Program class
 
 status_bar = Label(root, text='Status bar')
 status_bar.config(bd=1, relief=SUNKEN)
-status_bar.pack(side=BOTTOM, fill=X, anchor=NW, padx=10, pady=10)
+status_bar.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
+
+def updtStsBar(statusMsg):
+    print(statusMsg)
+    status_bar.config(text=statusMsg)
 
 main_btn = Button(root, text='Save States', command=saveState)
 main_btn.pack(side=BOTTOM, padx=10, pady=5)
+
+test_btn = Button(root, text='Test Button', command= lambda:updtStsBar('status msg'))
+test_btn.pack(side=BOTTOM, pady=10)
 
 if serCom.autoConnect:
     serCom.connectPort()

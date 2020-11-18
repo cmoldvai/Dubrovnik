@@ -79,7 +79,8 @@ class BoardComm:
             raise IOError("cannot open " + comport)
 
         print('Port: %s' % comport)
-        return comport
+        return self.handle
+        # return comport
 
     def disconnect(self, comport):
         if comport:

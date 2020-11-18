@@ -2,19 +2,19 @@ import sys
 import pickle
 from tkinter import *
 from tkinter import ttk
-# from tkinter.messagebox import askretrycancel
 
-class SerComInterface(Frame):
+class SerCom(Frame):
 
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(
-            self, parent, text='Serial Connection', padx=5, pady=5)
+            self, parent, text='Serial Connection', padx=10, pady=10)
         self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.comm = None                      # object created by boardcom
         self.portStatus = 'disconnected'
         self.selPort = ''  # ! keeps track of selected port, between calls
         self.portList = []
+        self.portHandle = None
         self.chk_var = IntVar()
         self.autoConnect = 0
         with open('dubrovnik.pkl', 'rb') as fname:
@@ -26,27 +26,29 @@ class SerComInterface(Frame):
 
     def buildFrame(self):
         '''Makes a reusable frame for a connecting to Dubrovnik board'''
-        # self.chk_var = IntVar()
         chk = Checkbutton(self, text='Auto connect', variable=self.chk_var)
         chk.grid(row=0, column=0)
         self.chk_var.set(self.autoConnect)
+
         self.combo = ttk.Combobox(
             self, width=10, values=self.portList, postcommand=self.updtPortList)
         self.combo.grid(row=0, column=1, padx=10)
-        # self.combo.current(0)
-        self.btn2 = Button(self, width=12, text='Connect',
+
+        self.btn2 = Button(self, text='Connect', width=10,
                            command=self.connectPort)
         self.btn2.grid(row=0, column=2, padx=10)
-        self.btn3 = Button(self, text='Save Config',
-                                command=self.saveConfig)
+
+        self.btn3 = Button(self, text='Save Config', width=10,
+                           command=self.saveConfig)
         self.btn3.grid(row=0, column=3, padx=10, sticky=E)
 
         if self.DEBUG:
-            self.test_btn1 = Button(self, text='Testing', command=self.testing)
-            self.test_btn1.grid(row=3, column=1, sticky=S)
-
-            self.test_lbl = Label(self, text='debug messages')
-            self.test_lbl.grid(row=4, column=1, sticky=S)
+            self.test_btn = Button(self, text='Testing', width=10, command=self.testing)
+            self.test_btn.grid(row=1, column=0, padx=5, pady=10, columnspan=1)
+            self.test_lbl = Label(
+                self, text="Debug message:", anchor=W, justify='left')
+            self.test_lbl.grid(row=1, column=1, padx=5,
+                               pady=10, sticky=EW, columnspan=3)
 
     def updtPortList(self):
         self.portList = self.comm.findPorts()
@@ -57,7 +59,16 @@ class SerComInterface(Frame):
         if self.portStatus == 'disconnected':
             self.selPort = self.combo.get()
             # if disconnected, then connect to selected port
-            self.comm.connect(self.selPort)  # TODO check if need assignment
+            self.portHandle = self.comm.connect(
+                self.selPort)  # TODO check if need assignment
+            self.setSerialParams()
+            # ... and get parameters
+            # self.comPort = self.portHandle.port
+            # self.comBaudrate = self.portHandle.baudrate
+            # self.comBytesize = self.portHandle.bytesize
+            # self.comParity = self.portHandle.parity
+            # self.comStopbits = self.portHandle.stopbits
+            # self.comXonXoff = self.portHandle.xonxoff
             # change button label
             # two ways of doing it: config(text=) and dict['text']
             self.btn2.config(text='Disconnect')
@@ -79,10 +90,20 @@ class SerComInterface(Frame):
         print("Port: %s disconnected" % selPort)
 
     def testing(self):
-        self.test_lbl.config(text=self.chk_var.get())
-        # print(self.comm)
-        # print(self.portStatus)
-        # print(self.selPort)
+        serParams = '%s, baud=%d, bytes=%1d,\nparity=%s, stop=%1d, protocol=%s' \
+            % (self.comPort, self.comBaudrate, self.comBytesize, self.comParity, self.comStopbits, self.comXonXoff)
+        self.test_lbl.config(text=serParams)
+
+    def setSerialParams(self):
+        """
+        docstring
+        """
+        self.comPort = self.portHandle.port
+        self.comBaudrate = self.portHandle.baudrate
+        self.comBytesize = self.portHandle.bytesize
+        self.comParity = self.portHandle.parity
+        self.comStopbits = self.portHandle.stopbits
+        self.comXonXoff = self.portHandle.xonxoff
 
     def saveConfig(self):
         chk_value = self.chk_var.get()
@@ -98,7 +119,7 @@ if __name__ == '__main__':
     from dubLibs import boardcom
 
     # serCom = SerComInterface()
-    serCom = SerComInterface(DEBUG=True)
+    serCom = SerCom(DEBUG=True)
     comm = boardcom.BoardComm()  # create an instance of class Comm
     portList = comm.findPorts()
     serCom.combo.set(portList[0])
