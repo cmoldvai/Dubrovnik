@@ -36,20 +36,6 @@ class BoardComm:
         self.vrfyout = sys.stdout       # default verify-out
         self.vrfyprogress = False       # default verify report progress
 
-    # def findPorts(self):
-    #     ports = serial.tools.list_ports.comports()
-    #     portList = []
-    #     # [portList.append(ports[i].device)
-    #     # for i in range(len(ports)) if ports[i].manufacturer == 'FTDI']
-    #     for i in range(len(ports)):
-    #         if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
-    #             portList.append(ports[i].device)
-    #     if portList == []:
-    #         print("No COM PORT detected")
-    #         # sys.exit()
-    #     portList.sort()  # in-place sorting of the list
-    #     return portList  # return sorted port list
-
     def getPortList(self):
         portList = []
         ports = serial.tools.list_ports.comports()
@@ -57,11 +43,11 @@ class BoardComm:
             if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
                 portList.append(ports[i].device)
         return portList
-    
+
     def findPorts(self):
         portList = self.getPortList()
         while portList == []:
-            if askretrycancel('Connection Failure','Connect a COM port. Retry?'):
+            if askretrycancel('Connection Failure', 'Connect a COM port. Retry?'):
                 portList = self.getPortList()
             else:
                 sys.exit
@@ -69,11 +55,10 @@ class BoardComm:
         portList.sort()  # in-place sorting of the list
         return portList  # return sorted port list
 
-
     def connect(self, comport):
         try:
             self.handle = serial.Serial(comport, self.baudrate, timeout=60)
-            print(self.handle)
+            # print(self.handle)
         except serial.SerialException:
             print("Error: cannot open", comport)
             raise IOError("cannot open " + comport)
@@ -85,7 +70,7 @@ class BoardComm:
     def disconnect(self, comport):
         if comport:
             self.handle.close()
-            print(self.handle)
+            # print(self.handle)
 
     def autoConnect(self, defaultPort):
         portList = self.find_ports()

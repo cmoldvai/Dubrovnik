@@ -1,5 +1,7 @@
+import os
 from tkinter import *
 from dubLibs import dubrovnik as du
+from tkinter.filedialog import askopenfilename
 
 
 class Program(Frame):
@@ -19,32 +21,36 @@ class Program(Frame):
         self.pattern = StringVar()
         self.increment = StringVar()
         self.progMode = IntVar()
-        self.progModes = ['patter','file']
+        self.progModes = ['pattern', 'file']
         self.comm = None
         self.buildFrame()
         self.progMode.set(self.progModes[0])
 
     def buildFrame(self):
         '''Makes a reusable frame for a flash program operation'''
-        rb_file = Radiobutton(self, text='Use Pattern', variable=self.progMode, value=self.progModes[0])
+        rb_file = Radiobutton(self, text='Use Pattern',
+                              variable=self.progMode, value=self.progModes[0])
         rb_file.grid(row=1, column=0, padx=10, pady=2, sticky=W)
 
-        rb_pattn = Radiobutton(self, text='Load from File', variable=self.progMode, value=self.progModes[1])
+        rb_pattn = Radiobutton(self, text='Load from File',
+                               variable=self.progMode, value=self.progModes[1])
         rb_pattn.grid(row=2, column=0, padx=10, pady=2, sticky=W)
 
         pat_lbl = Label(self, text='Pattern: 0x').grid(
             row=0, column=1, padx=5, pady=5, sticky=E)
         pat_ent = Entry(self, textvariable=self.pattern).grid(row=0, column=2)
         self.pattern.set('caba0000')
-        
+
         incr_lbl = Label(self, text='Increment: 0x').grid(
             row=1, column=1, padx=5, pady=5, sticky=E)
-        incr_ent = Entry(self, textvariable=self.increment).grid(row=1, column=2)
+        incr_ent = Entry(self, textvariable=self.increment).grid(
+            row=1, column=2)
         self.increment.set('1')
 
         sa_lbl = Label(self, text='Start Address: 0x').grid(
             row=2, column=1, padx=5, pady=5, sticky=E)
-        sa_ent = Entry(self, textvariable=self.start_addr).grid(row=2, column=2)
+        sa_ent = Entry(self, textvariable=self.start_addr).grid(
+            row=2, column=2)
         self.start_addr.set('60')
 
         len_lbl = Label(self, text='Length: 0x').grid(
@@ -55,12 +61,13 @@ class Program(Frame):
         prog_btn = Button(self, text='Program', width=10, command=self.program).grid(
             row=5, column=1, padx=10, pady=10)
 
-        if self.DEBUG:
-            msg_btn = Button(self, text='Message', width=10, command=self.message).grid(
+        open_btn = Button(self, text='Open', width=10, command=self.openFile).grid(
             row=5, column=0, padx=10, pady=10)
-            
-            quit_btn = Button(self, text='Quit', width=10, command=sys.exit)
-            quit_btn.grid(row=5, column=2, padx=10, pady=10)
+
+        if self.DEBUG:
+            test_btn = Button(self, text='Quit', width=10, command=sys.exit)
+            # test_btn = Button(self, text='Quit', width=10, command=self.message)
+            test_btn.grid(row=5, column=2, padx=10, pady=10)
 
     def get_states(self):
         global startAddr
@@ -80,6 +87,14 @@ class Program(Frame):
               (startAddr, dataLen, pattn, incr))
         du.pattern_program(self.comm, startAddr, dataLen, pattn, incr)
         print('programming done.')
+
+    def openFile(self):
+        filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
+        ), filetypes=(('All files', '*.*'), ('Binary files', '*.bin'), ('Hex files', '*.hex')))
+        print(filename)
+        f = open(filename, 'r')
+        print(f.read())
+        f.close()
 
     def message(self):
         self.get_states()
