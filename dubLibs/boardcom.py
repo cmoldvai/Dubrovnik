@@ -47,7 +47,7 @@ class BoardComm:
     def findPorts(self):
         portList = self.getPortList()
         while portList == []:
-            if askretrycancel('Connection Failure', 'Connect a COM port. Retry?'):
+            if askretrycancel('Connection Error', 'Connect a COM port. Retry?'):
                 portList = self.getPortList()
             else:
                 sys.exit
