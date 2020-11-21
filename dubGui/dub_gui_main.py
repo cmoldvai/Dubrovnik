@@ -13,8 +13,9 @@ from tkinter.messagebox import askretrycancel, showerror
 class SerCom(Frame):
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(
-            self, parent, text='Serial Connection', padx=10, pady=10)
-        self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+            self, parent, text='Serial Connection', 
+             width=200, height=500, padx=10, pady=10)
+        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.STANDALONE = False
         self.comm = None                      # object created by boardcom
@@ -129,7 +130,7 @@ class Program(Frame):
 
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Program', padx=5, pady=5)
-        self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.start_addr = StringVar()
         self.length = StringVar()
@@ -228,7 +229,8 @@ class Erase(Frame):
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Erase',
                             relief=GROOVE, padx=10, pady=10)
-        self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        self.grid()
         self.DEBUG = DEBUG
         self.comm = None
         self.pageSize = 0x100
@@ -316,7 +318,7 @@ class Read(Frame):
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Read',
                             relief=GROOVE, padx=10, pady=10)
-        self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.comm = None
         self.spiMode = StringVar()
@@ -410,7 +412,7 @@ if __name__ == "__main__":
             program.start_addr.set(cfg['progStartAddr'])
             program.length.set(cfg['progLength'])
             read.spiMode.set(cfg['readSpiMode'])
-            read.startAddr.set(cfg['readEndAddr'])
+            read.startAddr.set(cfg['readStartAddr'])
             read.endAddr.set(cfg['readEndAddr'])
             fname.close()
         except FileNotFoundError:
@@ -457,31 +459,41 @@ if __name__ == "__main__":
     comm = boardcom.BoardComm()   # create an instance of class Comm
     portList = comm.findPorts()
 
-    serCom = SerCom(root, DEBUG=True)  # invoking the class
-    serCom.config(bd=2, relief=GROOVE)
-    serCom.pack(side=TOP, fill=BOTH)
+    serCom = SerCom(root, DEBUG=False)  # invoking the class
+    # serCom.pack(side=TOP, fill=BOTH)
+    serCom.grid_propagate(0)
+    serCom.config(width=350, height=100, bd=2, relief=GROOVE)
+    serCom.grid(row=0, column=0, padx=10, pady=10, sticky=NW)
     serCom.combo.set(portList[0])
     serCom.comm = comm
 
-    erase = Erase(root, DEBUG=True)  # invoking the class
-    erase.config(bd=2, relief=GROOVE)
-    erase.pack(side=TOP, fill=BOTH)
+    erase = Erase(root, DEBUG=False)  # invoking the class
+    # erase.pack(side=LEFT, fill=BOTH)
+    erase.grid_propagate(0)
+    erase.config(width=350, height=210, bd=2, relief=GROOVE)
+    erase.grid(row=1, column=0, padx=10, pady=10, sticky=NW)
     erase.comm = comm     # initializeing self.com in Erase class
 
-    program = Program(root, DEBUG=True)  # invoking the class
-    program.config(bd=2, relief=GROOVE)
-    program.pack(side=TOP, fill=BOTH)
+    program = Program(root, DEBUG=False)  # invoking the class
+    # program.pack(side=LEFT, fill=BOTH)
+    program.grid_propagate(0)
+    program.config(width=380, height=210, bd=2, relief=GROOVE)
+    program.grid(row=1, column=1, padx=10, pady=10, sticky=NW)
     program.comm = comm   # initializeing self.com in Program class
 
-    read = Read(root, DEBUG=True)  # invoking the class
-    read.config(bd=2, relief=GROOVE)
-    read.pack(side=TOP, fill=BOTH)
+    read = Read(root, DEBUG=False)  # invoking the class
+    # read.pack(side=LEFT, fill=BOTH)
+    read.grid_propagate(0)
+    read.config(width=380, height=210, bd=2, relief=GROOVE)
+    read.grid(row=1, column=2, padx=10, pady=10, sticky=NW)
     read.comm = comm     # initializeing self.com in Erase class
 
     stsBarComm = Label(root, text='Not connected', font=(
-        "Helvetica", 8), anchor=W, justify=LEFT, pady=2)
+        "Helvetica", 9), anchor=W, justify=LEFT, pady=2)
     stsBarComm.config(bd=1, relief=SUNKEN)
-    stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
+    # stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
+    # stsBarComm.grid_propagate(0)
+    stsBarComm.grid(row=3, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
 
     # test_btn1 = Button(root, text='Save Config',
     #                    command=saveConfig)
@@ -519,16 +531,12 @@ if __name__ == "__main__":
     config_menu.add_command(label="Load config",command=loadConfig)
     config_menu.add_command(label="Store config",command=saveConfig)
     config_menu.add_command(label="Restore defaults",command=loadDefaultSettings)
-    # config_menu.add_separator()
-    # config_menu.add_command(label="Exit")
 
     help_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Help", menu=help_menu)
     help_menu.add_command(label="Help")
     help_menu.add_separator()
     help_menu.add_command(label="About")
-
-
 
     loadConfig()
 
