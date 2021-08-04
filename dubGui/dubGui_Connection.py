@@ -17,10 +17,10 @@ class SerCom(Frame):
         self.portHandle = None
         self.chk_var = IntVar()
         self.autoConnect = 0
-        with open('dubrovnik.pkl', 'rb') as fname:
-            cfg = pickle.load(fname)
-            print(cfg)
-            self.autoConnect = cfg['autoConnect']
+        # with open('dubrovnik.pkl', 'rb') as fname:
+        #     cfg = pickle.load(fname)
+        #     print(cfg)
+        #     self.autoConnect = cfg['autoConnect']
         self.chk_var.get()
         self.buildFrame()
 

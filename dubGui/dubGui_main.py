@@ -22,9 +22,9 @@ def saveState():
          'selPort': 1
          }
     print(D)
-    f = open('dubrovnik.json', 'w')
-    json.dump(D, f)
-    f.close()
+    # f = open('dubrovnik.json', 'w')
+    # json.dump(D, f)
+    # f.close()
 
 
 root = Tk()

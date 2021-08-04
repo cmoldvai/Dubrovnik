@@ -8,26 +8,30 @@ print('********************************')
 print('***** DUROVNIK TEST START *****')
 print('********************************\n')
 
-os.system('cls')  # clear terminal screen
+# os.system('cls')  # clear terminal screen
+# print(sys.path)
 
-print(sys.path)
+# *********************
+# *****  Connect  *****
+# *********************
+comm = boardcom.BoardComm()   # create an instance of class BoardComm
+connectedPort = comm.find_and_connect(echo=1)
 
-# comm is a global variable (within this file)
-defaultPort = 5
-comm = boardcom.detect_ports(defaultPort)
-
-##################################
-#####        M A I N        ######
-##################################
+# #################################
+# ####        M A I N        ######
+# #################################
 
 # ENTER System Parameters Here
-vcc = 3.0
-freq = 8          # chose 8 (8.25), 15 (14.67) or 30 (29.33)
+freq = 8   # chose 8 (8.25), 15 (14.67) or 30 (29.33)
 pmon_id = '5'
 
-# cmd(comm, 'freq ' + str(freq))
 du.cmd(comm, 'freq ' + str(freq))
 du.cmd(comm, 'dispmode w')
+
+# Read SW version
+comm.send('ver')
+version = comm.response()
+print(version)
 
 # Read board configuration and reset the chip
 comm.send('config')
@@ -36,6 +40,9 @@ print(cfg)
 config = cfg.split('\n')
 partNumber = config[1].split('=')[1].split(' ')[1].upper()
 voltage = config[2].split('=')[1].split(' ')[1].lower()
+
+if partNumber == 'UNKNOWN':
+    voltage = '3.3'  # don't go higher, it may damage the MCU VCC_SD input
 
 # the previous run may have left it at low voltage
 comm.send('psset 0 ' + voltage)
@@ -55,28 +62,31 @@ for dacval in dacvals:
     Dadc = resp.splitlines()[1].split()[2]
     adc = eval(Dadc)
     msg = '\tDAC=0x%s => ADC=%s ' % (dacval, Dadc)
-    if adc < .975*int(dacval, 16) or adc > 1.025*int(dacval, 16):
-        print(msg + '(incorrect ADC value)' + 'FAIL')
-    else:
+    dac = int(dacval, 16)  # convert it to int for comparison
+    if .975 * dac < adc < 1.025 * dac:
         print(msg + 'PASS')
+    else:
+        print(msg + '(incorrect ADC value)' + 'FAIL')
     i += 1
 # restore MUX setting to original, to pass CS# to the flash
 comm.send('muxset 0')
 
 print('\n ********** PMON TEST **********')
-for pmon in range(8):
-    du.pmon_cfg(comm, dev_id=pmon)
+# for pmon in range(7):
+#     du.pmoncfg(comm, dev_id=pmon, meas='iv')
+du.pmoncfg(comm, meas='iv')
 
-for pmon in range(8):
+for pmon in range(5):
     pmon_id = str(pmon)
     pmon_str = 'pmon ' + pmon_id + ' start; timer start; delay 20000;' + \
                'timer stop; pmon ' + pmon_id + ' stop; pmon ' + pmon_id + ' calc'
     comm.send(pmon_str)
-    resp = comm.response().splitlines()[1]
-    # i_mA = resp.splitlines()[1].split(' ')[2]
+    resp = comm.response()
+    i_v = resp.splitlines()[1].split(' ')
+    curr = i_v[2]
+    volt = i_v[6]
     if resp != 'i2c error':
-        i_mA = resp
-        print('\tPMON %d: I = %s mA' % (pmon, i_mA.split()[2]))
+        print('\tPMON %d: %5s V, %5s mA' % (pmon, volt, curr))
     else:
         print('\tPMON %d: %s' % (pmon, resp))
 
@@ -157,24 +167,40 @@ if partNumber[0:2] == 'AT':          # device present
         print('\nERASE FAIL')
 
 print('\n ********** V_ADJ TEST **********')
-vmax = eval(voltage)
-vstep = 6
-for i in range(vstep-1):
-    v = vmax - vmax/vstep*i
-    if v >= 0.9:    # this is the minimum voltage of the LDO
-        vf = format('%.3f' % v)
-        cmd = 'psset 0 ' + vf
-        comm.send(cmd)
-        sleep(.2)
-        input('Set voltage %.3fV --> Verify and press <Enter> to continue' % v)
+comm.send('pmoncfg meas v')
+
+vmin = 0.9  # this is the minimum voltage of the LDO
+vmax = eval(voltage)  # int(voltage)
+step = 10
+K = (vmax - vmin) / step
+epsilon = .04  # max allowed voltage difference
+
+comm.send('psset 0 0')  # turn off power supply
+sleep(1)  # wait for caps discharge and voltage to drop
+
+print('\tVset[V] Vmeas[V] Diff')
+for i in range(step):
+    v = vmax - K * i
+    vset = format('%.3f' % v)
+    cmd = 'psset 0 ' + vset
+    comm.send(cmd)
+    sleep(.5)  # may need time for voltage to stabilize
+    comm.send('pmon 1 start; delay 100000; pmon 1 stop; pmon 1 calc')
+    resp = comm.response()
+    v_str = resp.split('\n')[1].split(' ')[2]  # extract voltage value
+    vmeas = float(v_str)  # convert it into a float
+    vdiff = (v - vmeas) * 1000
+    if((v - epsilon) < vmeas < (v + epsilon)):  # is measured voltage in range?
+        print(f'\t {v:.3f}   {vmeas:.3f} {vdiff:3.0f}mV  : PASS')
+    else:
+        print(f'\t {v:.3f}   {vmeas:.3f} {vdiff:3.0f}mV  : FAIL')
+
 comm.send('psset 0 ' + str(vmax))    # restore starting value
 
-############################
-#####     CLEAN-UP     #####
-############################
-del comm
-print('\n***** CLEAN UP *****')
-print("COM port deleted\n")
+# ************************
+# *****  Disconnect  *****
+# ************************
+comm.disconnect(connectedPort, echo=1)
 print('*******************************')
 print('******** TEST FINISHED ********')
 print('*******************************\n')

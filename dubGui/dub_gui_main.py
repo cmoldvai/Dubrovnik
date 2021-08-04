@@ -1,5 +1,5 @@
 import os
-import sys 
+import sys
 # import pickle
 import json
 from tkinter import *
@@ -13,8 +13,8 @@ from tkinter.messagebox import askretrycancel, showerror
 class SerCom(Frame):
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(
-            self, parent, text='Serial Connection', 
-             width=200, height=500, padx=10, pady=10)
+            self, parent, text='Serial Connection',
+            width=200, height=500, padx=10, pady=10)
         # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.STANDALONE = False
@@ -93,7 +93,6 @@ class SerCom(Frame):
     def checkConnection(self):
         if self.portStatus == 'disconnected':
             showerror('No Connection!', 'Connect to the board')
-                
 
     def setSerialParams(self):
         """ Gets serial communication port parameters """
@@ -121,12 +120,14 @@ class SerCom(Frame):
             % (self.comPort, self.comBaudrate, self.comBytesize, self.comParity, self.comStopbits, self.comXonXoff)
         self.test_lbl.config(text=serParams)
 
+
 class Program(Frame):
     startAddr = 0
     dataLen = 0
     endAddr = 0
     pattn = 'cafe0000'
     incr = '1'
+    progData = []
 
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Program', padx=5, pady=5)
@@ -136,55 +137,56 @@ class Program(Frame):
         self.length = StringVar()
         self.pattern = StringVar()
         self.increment = StringVar()
-        self.progMode = IntVar()
-        self.progModes = ['pattern', 'file']
+        self.progModeVar = StringVar()
+        self.progModeList = ['pattern', 'file']
         self.comm = None
-        self.buildFrame()
-        self.progMode.set(self.progModes[0])
+        self.buildFrame()  # buld and draw the frame
+        # set up the inital values in the frame
+        self.progModeVar.set(self.progModeList[0])
 
     def buildFrame(self):
         '''Makes a reusable frame for a flash program operation'''
-        rb_file = Radiobutton(self, text='Use Pattern',
-                              variable=self.progMode, value=self.progModes[0])
+        rb_file = Radiobutton(self, text='Use Pattern', variable=self.progModeVar,
+                              value=self.progModeList[0], command=self.grayOutEntry)
         rb_file.grid(row=1, column=0, padx=10, pady=2, sticky=W)
 
-        rb_pattn = Radiobutton(self, text='Load from File',
-                               variable=self.progMode, value=self.progModes[1])
+        rb_pattn = Radiobutton(self, text='Load from File', variable=self.progModeVar,
+                               value=self.progModeList[1], command=self.grayOutEntry)
         rb_pattn.grid(row=2, column=0, padx=10, pady=2, sticky=W)
 
         lbl1_prog = Label(self, text='Pattern: 0x')
         lbl1_prog.grid(row=0, column=1, padx=5, pady=5, sticky=E)
-        ent1_prog = Entry(self, textvariable=self.pattern)
-        ent1_prog.grid(row=0, column=2)
+        self.ent1_prog = Entry(self, textvariable=self.pattern)
+        self.ent1_prog.grid(row=0, column=2)
         self.pattern.set('caba0000')
 
         lbl2_prog = Label(self, text='Increment: 0x')
         lbl2_prog.grid(row=1, column=1, padx=5, pady=5, sticky=E)
-        ent2_prog = Entry(self, textvariable=self.increment)
-        ent2_prog.grid(row=1, column=2)
+        self.ent2_prog = Entry(self, textvariable=self.increment)
+        self.ent2_prog.grid(row=1, column=2)
         self.increment.set('1')
 
         lbl3_prog = Label(self, text='Start Address: 0x')
         lbl3_prog.grid(row=2, column=1, padx=5, pady=5, sticky=E)
-        ent3_prog = Entry(self, textvariable=self.start_addr)
-        ent3_prog.grid(row=2, column=2)
+        self.ent3_prog = Entry(self, textvariable=self.start_addr)
+        self.ent3_prog.grid(row=2, column=2)
         self.start_addr.set('60')
 
         lbl4_prog = Label(self, text='Length: 0x')
         lbl4_prog.grid(row=3, column=1, padx=5, pady=5, sticky=E)
-        ent4_prog = Entry(self, textvariable=self.length)
-        ent4_prog.grid(row=3, column=2)
+        self.ent4_prog = Entry(self, textvariable=self.length)
+        self.ent4_prog.grid(row=3, column=2)
         self.length.set('250')
 
-        btn1_prog = Button(self, text='Program', width=10, command=self.program)
-        btn1_prog.grid(row=5, column=2, padx=10, pady=10)
-
-        btn2_prog = Button(self, text='Open', width=10, command=self.openFile)
-        btn2_prog.grid(row=5, column=1, padx=10, pady=10)
+        self.btn_openFile = Button(self, text='Open', width=10, command=self.openFile, state=DISABLED)
+        self.btn_openFile.grid(row=5, column=0, padx=10, pady=10)
+        self.btn_progFile = Button(self, text='Program', width=10, command=self.program)
+        self.btn_progFile.grid(row=5, column=2, padx=10, pady=10)
 
         if self.DEBUG:
-            test_btn = Button(self, text='Program test', width=10, command=self.program_test)
-            # test_btn = Button(self, text='Quit', width=10, command=self.message)
+            test_btn = Button(self, text='Program test',
+                              width=10, command=self.program_test)
+            # test_btn = Button(self, text='TestMsg', width=10, command=self.message)
             test_btn.grid(row=5, column=0, padx=10, pady=10)
 
     def get_states(self):
@@ -199,22 +201,45 @@ class Program(Frame):
         pattn = self.pattern.get()
         incr = self.increment.get()
 
+    def grayOutEntry(self):
+        if self.progModeVar.get() == 'file':
+            self.ent1_prog.config(state=DISABLED)
+            self.ent2_prog.config(state=DISABLED)
+            self.ent4_prog.config(state=DISABLED)
+            self.btn_openFile.config(state=NORMAL)
+        else:
+            self.ent1_prog.config(state=NORMAL)
+            self.ent2_prog.config(state=NORMAL)
+            self.ent4_prog.config(state=NORMAL)
+            self.btn_openFile.config(state=DISABLED)
+
     def program(self):
-        serCom.checkConnection() # check if board is connected
+        serCom.checkConnection()  # check if board is connected
         self.get_states()
-        print('startAddr: %x, dataLen: %x, pattn: %s, incr: %s' %
-              (startAddr, dataLen, pattn, incr))
-        endAddr = startAddr + dataLen
-        du.pattern_program(self.comm, startAddr, endAddr, pattn, incr)
-        print('programming done.')
+        if self.progModeVar.get() == 'pattern':
+            print('startAddr: %x, dataLen: %x, pattn: %s, incr: %s' %
+                  (startAddr, dataLen, pattn, incr))
+            endAddr = startAddr + dataLen
+            du.pattern_program(self.comm, startAddr, endAddr, pattn, incr)
+            print('programming done.')
+        else:   # if programming a content of a file
+            dsize = len(self.progData)
+            du.write_buf_write(comm, self.progData, dsize)
+            du.data_program(comm, self.progData, startAddr)
+            pass
+
 
     def openFile(self):
         filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
         ), filetypes=(('All files', '*.*'), ('Binary files', '*.bin'), ('Hex files', '*.hex')))
         print(filename)
-        f = open(filename, 'r')
-        print(f.read())
-        f.close()
+        fnameParts = os.path.splitext(filename)
+        extension = fnameParts[-1]
+        if extension.lower() == '.bin':
+            with open(filename, 'rb') as f:
+                # self.progData = bytes(f.read(), 'utf-8')
+                self.progData = f.read()
+                print(self.progData)
 
     def program_test(self):
         self.get_states()
@@ -245,16 +270,16 @@ class Erase(Frame):
         '''Makes a reusable frame for a flash erase operation'''
         # ersfrm = LabelFrame(self, parent).pack(side=LEFT, anchor=NW, padx=10,pady=10)
         rb1_ers = Radiobutton(self, text='4kB',
-                          variable=self.blockSize, value=self.blockSizes[0])
+                              variable=self.blockSize, value=self.blockSizes[0])
         rb1_ers.grid(row=0, column=0, padx=10, pady=2, sticky=W)
         rb2_ers = Radiobutton(self, text='32kB',
-                          variable=self.blockSize, value=self.blockSizes[1])
+                              variable=self.blockSize, value=self.blockSizes[1])
         rb2_ers.grid(row=1, column=0, padx=10, pady=2, sticky=W)
         rb3_ers = Radiobutton(self, text='64kB',
-                          variable=self.blockSize, value=self.blockSizes[2])
+                              variable=self.blockSize, value=self.blockSizes[2])
         rb3_ers.grid(row=2, column=0, padx=10, pady=2, sticky=W)
         rb4_ers = Radiobutton(self, text='Chip',
-                          variable=self.blockSize, value=self.blockSizes[3])
+                              variable=self.blockSize, value=self.blockSizes[3])
         rb4_ers.grid(row=3, column=0, padx=10, pady=2, sticky=W)
 
         lbl_ers = Label(self, text='Start Address:  0x')
@@ -272,18 +297,19 @@ class Erase(Frame):
         self.numBlocks.set('3')
 
         btn2_ers = Button(self, text='Erase', width=12,
-                      justify='center', command=self.blockErase)
+                          justify='center', command=self.blockErase)
         btn2_ers.grid(row=3, column=2, padx=2, pady=2)
 
         if self.DEBUG:
             lbl4_ers = Label(self, text='Results here:')
             lbl4_ers.grid(row=4, column=0, sticky=E)
 
-            quit_btn_ers = Button(self, text='Erase test', width=12, command=self.erase_test)
+            quit_btn_ers = Button(self, text='Erase test',
+                                  width=12, command=self.erase_test)
             quit_btn_ers.grid(row=3, column=1, padx=2, pady=2)
 
     def blockErase(self):
-        serCom.checkConnection() # check if board is connected
+        serCom.checkConnection()  # check if board is connected
         blkSzStr = self.blockSize.get()
         if blkSzStr == 'Chip':
             print('Erasing entire chip')
@@ -292,7 +318,8 @@ class Erase(Frame):
             print('Chip erase done.')
         else:
             # must be in else, otherwise it fails for 'Chip'
-            block_size = int(blkSzStr) # don't change it to hex int(blkSzStr, 16). Will fail
+            # don't change it to hex int(blkSzStr, 16). Will fail
+            block_size = int(blkSzStr)
             start_addr = int(self.startAddr.get(), 16)
             # # Calculating the actual start addresses:
             # mask = ~((block_size * 1024) - 1)  #! Tricky. Pay attention:
@@ -323,35 +350,32 @@ class Read(Frame):
         self.comm = None
         self.spiMode = StringVar()
         self.startAddr = StringVar()
-        self.endAddr = StringVar()
-        self.spiModes = ['SPI', 'Dual', 'Quad (114)', 'Quad (144)', 'QPI (444)', 'Octal']
+        self.readLength = StringVar()
+        self.spiModes = ['SPI', 'Dual',
+                         'Quad (114)', 'Quad (144)', 'QPI (444)', 'Octal']
         self.buildFrame()
         self.spiMode.set(self.spiModes[0])
-
-    def read_test(self):
-        print('Reading stuff')
-        serCom.checkConnection() # check if board is connected
 
     def buildFrame(self, parent=None):
         '''Makes a reusable frame for a flash erase operation'''
         # ersfrm = LabelFrame(self, parent).pack(side=LEFT, anchor=NW, padx=10,pady=10)
         rb1_read = Radiobutton(self, text=self.spiModes[0],
-                          variable=self.spiMode, value=self.spiModes[0])
+                               variable=self.spiMode, value=self.spiModes[0])
         rb1_read.grid(row=0, column=0, padx=10, pady=2, sticky=W)
         rb2_read = Radiobutton(self, text=self.spiModes[1],
-                          variable=self.spiMode, value=self.spiModes[1])
+                               variable=self.spiMode, value=self.spiModes[1])
         rb2_read.grid(row=1, column=0, padx=10, pady=2, sticky=W)
         rb3_read = Radiobutton(self, text=self.spiModes[2],
-                          variable=self.spiMode, value=self.spiModes[2])
+                               variable=self.spiMode, value=self.spiModes[2])
         rb3_read.grid(row=2, column=0, padx=10, pady=2, sticky=W)
         rb4_read = Radiobutton(self, text=self.spiModes[3],
-                          variable=self.spiMode, value=self.spiModes[3])
+                               variable=self.spiMode, value=self.spiModes[3])
         rb4_read.grid(row=3, column=0, padx=10, pady=2, sticky=W)
         rb5_read = Radiobutton(self, text=self.spiModes[4],
-                          variable=self.spiMode, value=self.spiModes[4])
+                               variable=self.spiMode, value=self.spiModes[4])
         rb5_read.grid(row=4, column=0, padx=10, pady=2, sticky=W)
-        rb6_read= Radiobutton(self, text=self.spiModes[5],
-                          variable=self.spiMode, value=self.spiModes[5])
+        rb6_read = Radiobutton(self, text=self.spiModes[5],
+                               variable=self.spiMode, value=self.spiModes[5])
         rb6_read.grid(row=5, column=0, padx=10, pady=2, sticky=W)
 
         lbl_read = Label(self, text='Start Address:  0x')
@@ -360,30 +384,32 @@ class Read(Frame):
         ent1_read.grid(row=0, column=2, sticky=W)
 
         self.startAddr.set('0')
-        self.endAddr.set('200')
+        self.readLength.set('200')
 
-        lbl2_read = Label(self, text='End Address:  0x')
+        lbl2_read = Label(self, text='Lenght:  0x')
         lbl2_read.grid(row=1, column=1, padx=10, pady=2, sticky=E)
-        ent2_read = Entry(self, textvariable=self.endAddr)
+        ent2_read = Entry(self, textvariable=self.readLength)
         ent2_read.grid(row=1, column=2, sticky=W)
 
         # self.spiMode.set('0')
 
         btn1_read = Button(self, text='Read', width=12,
-                      justify='center', command=self.read_test)
+                           justify='center', command=self.readFlash)
         btn1_read.grid(row=5, column=2, padx=2, pady=2)
 
         if self.DEBUG:
-            btn2_read = Button(self, text='Read test', width=12, command=self.read_test)
+            btn2_read = Button(self, text='Read test',
+                               width=12, command=self.readFlash)
             btn2_read.grid(row=5, column=1, padx=2, pady=2)
 
-
-    def read_test(self):
-        serCom.checkConnection() # check if board is connected
+    def readFlash(self):
+        serCom.checkConnection()  # check if board is connected
+        readStartAddr = int(self.startAddr.get(), 16)
+        readLen = int(self.readLength.get(), 16)
         print(f'SPI Mode      : {self.spiMode.get()}')
-        print(f'Start Address : {self.startAddr.get()}')
-        print(f'End Address   : {self.endAddr.get()}')
-        print('\n')
+        print(f'Start Address : {readStartAddr}')
+        print(f'Read Lenght   : {readLen}')
+        du.read(comm, staddr=readStartAddr, length=readLen, echo=1)
 
 
 if __name__ == "__main__":
@@ -413,26 +439,26 @@ if __name__ == "__main__":
             program.length.set(cfg['progLength'])
             read.spiMode.set(cfg['readSpiMode'])
             read.startAddr.set(cfg['readStartAddr'])
-            read.endAddr.set(cfg['readEndAddr'])
+            read.readLength.set(cfg['readLength'])
             fname.close()
         except FileNotFoundError:
             loadDefaultSettings()
-            
+            saveConfig()
 
     def loadDefaultSettings():
-            serCom.chk_var.set(0)
-            serCom.selPort = ''
-            # serCom.lastUsedPort = ''
-            erase.blockSize.set(erase.blockSizes[0])
-            erase.startAddr.set('0')
-            erase.numBlocks.set('3')
-            program.pattern.set('caba0000')
-            program.increment.set('1')
-            program.start_addr.set('20')
-            program.length.set('40')
-            read.spiMode.set(read.spiModes[0])
-            read.startAddr.set('0')
-            read.endAddr.set('100')
+        serCom.chk_var.set(0)
+        serCom.selPort = ''
+        # serCom.lastUsedPort = ''
+        erase.blockSize.set(erase.blockSizes[0])
+        erase.startAddr.set('0')
+        erase.numBlocks.set('1')
+        program.pattern.set('cafe0000')
+        program.increment.set('1')
+        program.start_addr.set('0')
+        program.length.set('100')
+        read.spiMode.set(read.spiModes[0])
+        read.startAddr.set('0')
+        read.readLength.set('100')
 
     def saveConfig():
         cfg = {'autoConnect': serCom.chk_var.get(),
@@ -446,7 +472,7 @@ if __name__ == "__main__":
                'progLength': program.length.get(),
                'readSpiMode': read.spiMode.get(),
                'readStartAddr': read.startAddr.get(),
-               'readEndAddr': read.endAddr.get()
+               'readLength': read.readLength.get()
                }
         print(cfg)
         f = open('dubrovnik.cfg', 'w')
@@ -522,15 +548,16 @@ if __name__ == "__main__":
 
     tools_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Tools", menu=tools_menu)
-    tools_menu.add_command(label="Open script",command=loadConfig)
-    tools_menu.add_command(label="Distribution",command=loadConfig)
-    tools_menu.add_command(label="Other tools",command=saveConfig)
+    tools_menu.add_command(label="Open script", command=loadConfig)
+    tools_menu.add_command(label="Distribution", command=loadConfig)
+    tools_menu.add_command(label="Other tools", command=saveConfig)
 
     config_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Config", menu=config_menu)
-    config_menu.add_command(label="Load config",command=loadConfig)
-    config_menu.add_command(label="Store config",command=saveConfig)
-    config_menu.add_command(label="Restore defaults",command=loadDefaultSettings)
+    config_menu.add_command(label="Load config", command=loadConfig)
+    config_menu.add_command(label="Store config", command=saveConfig)
+    config_menu.add_command(label="Restore defaults",
+                            command=loadDefaultSettings)
 
     help_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Help", menu=help_menu)

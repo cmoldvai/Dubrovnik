@@ -1,20 +1,20 @@
-import os
-import sys
+# import os, sys
 import time
 from dubLibs import boardcom
 from dubLibs import dubrovnik as du
 
-os.system('cls')  # clear terminal screen
+# os.system('cls')  # clear terminal screen
 # print(sys.path)
 
+# *********************************
+# *****        M A I N        *****
+# *********************************
 
-##################################
-#####        M A I N        ######
-##################################
-
-# Connecting to the board
-defaultPort = 5
-comm = boardcom.detect_ports(defaultPort)
+# *********************
+# *****  Connect  *****
+# *********************
+comm = boardcom.BoardComm()   # create an instance of class BoardComm
+connectedPort = comm.find_and_connect(echo=1)
 
 # ENTER System Parameters Here
 freq = 8          # chose 8 (8.25), 15 (14.67) or 30 (29.33)
@@ -43,15 +43,15 @@ print('Status Registers:')
 du.read_id(comm, narg=2)
 
 # # ****** Erase specific number of memory blocks *******
-du.erase_memory_block(comm, num_blocks=16, block_size=4)
+du.block_erase(comm, num_blocks=20, block_size=4)
 
 # # ****** Program memory blocks with variety of patterns for current measurement
 du.flash_program(comm)
 
 # '''
-#################################################
-#####     READ DEVICE - MEASURE CURRENT     #####
-#################################################
+# *************************************************
+# *****     READ DEVICE - MEASURE CURRENT     *****
+# *************************************************
 
 print('Read device')
 
@@ -61,18 +61,16 @@ file = open(fname, 'w')
 file.write('Part Number: %s \n' % partNumber)
 file.write('Temperature: %s\n' % temperature)
 file.write('Unit: %s \n' % deviceNum)
-file.write(
-    ' Mode  Vcc[V] freq[MHz] Icc1[mA] t_elapsed[us] num_errors start_address\n')
-file.write(
-    ' ----------------------------------------------------------------------\n')
+file.write(' Mode  Vcc[V] freq[MHz] Icc1[mA] t_elapsed[us] num_errors start_address\n')
+file.write(' ----------------------------------------------------------------------\n')
 
-#spi_mode = ['q144']
+# spi_mode = ['q144']
 spi_mode = ['spi', 'q144']
-#spi_mode = ['spi', 'q114', 'q144', 'q044']
-#set_voltage = [3.3]
+# spi_mode = ['spi', 'q114', 'q144', 'q044']
+# set_voltage = [3.3]
 set_voltage = [3, 3.3, 3.6]
 set_freq = [10, 20, 40]
-#set_freq = [10, 20, 40, 60, 80]
+# set_freq = [10, 20, 40, 60, 80]
 
 icc_results = []
 tot_error_cnt = 0
@@ -94,7 +92,7 @@ for mode in spi_mode:
     du.cmd(comm, '05; 35', echo=1)
 
     start_addr = du.wr_buffer(comm, mode)
-    read_opcode = du.set_mode(mode)
+    read_opcode = du.set_spi_mode(mode)
     print('MODE: %s\n' % mode)
     for v in set_voltage:
         du.cmd(comm, 'volt ' + str(v), echo=1)         # set voltage
@@ -120,17 +118,17 @@ for mode in spi_mode:
                 if i == 0:       # generate FRAMING pulses with GPIOs for scope triggering
                     # if SPI MODE = '1-4-4' then we need to add the MODE BITS ('0') to the string
                     if mode == 'q144':
-                        #addon = read_opcode + ' 0 ' + format(addr, 'X') + ' ' + block + ';'
+                        # addon = read_opcode + ' 0 ' + format(addr, 'X') + ' ' + block + ';'
                         addon = 'gpiowr 7 1;' + read_opcode + ' ' +\
                             format(addr, 'X') + ' 00 ' + block + ';gpiowr 7 0;'
                     elif mode == 'q044':
                         addon = 'gpiowr 7 1;' + 'eb' + ' ' + \
                             format(addr, 'X') + ' a0 ' + block + ';gpiowr 7 0;'
                     else:
-                        #addon = read_opcode + ' ' + format(addr, 'X') + ' ' + block + ';'
+                        # addon = read_opcode + ' ' + format(addr, 'X') + ' ' + block + ';'
                         addon = 'gpiowr 7 1;' + read_opcode + ' ' + \
                             format(addr, 'X') + ' ' + block + ';gpiowr 7 0;'
-                elif i == N-1:
+                elif i == N - 1:
                     if mode == 'q044':
                         addon = read_opcode + ' ' + \
                             format(addr, 'X') + ' 00 ' + block + ';'
@@ -175,28 +173,30 @@ for mode in spi_mode:
 
             # Format results and store it for saving into a file
 
-            ################################
-            #####     SAVE RESULTS     #####
-            ################################
+            # ********************************
+            # *****     SAVE RESULTS     *****
+            # ********************************
 
             ch1 = pmon1.index('=')         # find index for '='
             ch2 = pmon1.index('\n>>>')     # find index for \n>>>
             # between these is the current read and remove the 'mA' from the string
-            icc1 = pmon1[ch1+1: ch2-3]
+            icc1 = pmon1[ch1 + 1: ch2 - 3]
 
             # verifying if the read memory matches the write buffer
             comm.send('cmp ' + ' 0 ' + format(read_block_size, 'X'))
             comp_result_msg = comm.response()
 
+            SAVE_ERR_MSG = 0
             if not('equal' in comp_result_msg):
-                # print(comp_result_msg)
-                err_cnt = int(comp_result_msg.split(' ')[-3])
-                # error_msg = 'fail'
+                print(comp_result_msg)
+                if SAVE_ERR_MSG == 1:
+                    file.write('%s' % comp_result_msg)
+                err_msg = comp_result_msg.split('\n')[-2]
+                err_cnt = int(err_msg.split(' ')[1])
                 tot_error_cnt += 1
 
             file.write('%5s %6s  %7s  %7s  %14s     %6d        %5X \n' %
                        (mode, voltage[:-1], frequency[:-1], icc1, e_time[1][:-2], err_cnt, start_addr))
-            # error_msg = 'pass'
             err_cnt = 0
 
 file.write('\nNumber of failed cases %d\n' % tot_error_cnt)
@@ -204,11 +204,7 @@ file.write('\nNumber of failed cases %d\n' % tot_error_cnt)
 file.close()
 # '''
 
-
-############################
-#####     CLEAN-UP     #####
-############################
-# This should be at the end of the script
-del comm
-print('\n***** CLEAN UP *****')
-print("COM port deleted\n")
+# ************************
+# *****  Disconnect  *****
+# ************************
+comm.disconnect(connectedPort, echo=1)

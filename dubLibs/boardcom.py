@@ -55,7 +55,7 @@ class BoardComm:
         portList.sort()  # in-place sorting of the list
         return portList  # return sorted port list
 
-    def connect(self, comport):
+    def connect(self, comport, echo=0):
         try:
             self.handle = serial.Serial(comport, self.baudrate, timeout=60)
             # print(self.handle)
@@ -63,17 +63,49 @@ class BoardComm:
             print("Error: cannot open", comport)
             raise IOError("cannot open " + comport)
 
-        print('Port: %s' % comport)
+        print(f'Connected to {comport}...')
         return self.handle
         # return comport
 
-    def disconnect(self, comport):
+    def disconnect(self, comport, echo=0):
         if comport:
             self.handle.close()
             # print(self.handle)
+        if echo:
+            print(f'\nDisconnected from {comport}...')
+
+    def find_and_connect(self, desiredPort='auto', echo=0):
+        '''
+        Finds all USB ports that have a Dubronik board connected to and lists them
+        We can specify the desired port
+        Parameters:
+            desiredPort : integer value or the port we want to connect to. This can be useful
+                          when we want to connect to a specific dubrovnik board. If for some reason
+                          that board is not available (turned off, or not workink) we will get 
+                          an error message
+                          'auto' will select the first element of portList
+            echo : if '1' it will print the list of available ports (portList)
+        Returns the port name (COMn) it is connected to
+        Example:
+        comm is an instance of BoardComm
+        connectedPort = comm.find_and_connect()
+        connectedPort = comm.find_and_connect(echo=1)
+        connectedPort = comm.find_and_connect(desiredPort=5, echo=1) 
+        connectedPort = comm.find_and_connect(desiredPort=5) 
+        '''
+        portList = self.findPorts()
+        if echo == 1:
+            print(portList)
+        if desiredPort == 'auto':
+            connectedPort = portList[0]
+        else:
+            connectedPort = f'COM{desiredPort}'
+        self.connect(connectedPort)
+        return connectedPort
 
     def autoConnect(self, defaultPort):
-        portList = self.find_ports()
+        '''Automatically connect to defaultPort if specified'''
+        portList = self.findPorts()
         if portList:
             port = portList[0]
             self.connect(port)
@@ -100,18 +132,18 @@ class BoardComm:
             b = self.handle.read(1)
             if len(b) == 0:
                 # We can only get here due to timeout
-                #print("Could not find prompt; so far read:")
+                # print("Could not find prompt; so far read:")
                 # print(s)
                 return 1
 
             c = b.decode('utf-8')
             self.raw += c
-            #print("bm raw", self.raw)
+            # print("bm raw", self.raw)
             if self.raw.endswith(self.prompt):
-                #ok = True
+                # ok = True
                 # print(self.raw)
                 self.cooked = self.raw.lower()
-                #print ("cooked:", self.cooked)
+                # print ("cooked:", self.cooked)
                 return 0
 
     def set_vrfy_attrs(self, vrfyout=None, vrfyprogress=None):
@@ -129,10 +161,9 @@ class BoardComm:
 
     def sendvrfy(self, cm, annotation=None, reflines=None):
         """Send a command 'cm' and optionally verify result via 'assert'.
-        This method produces text 
+        This method produces text
         If annotation not provided, 'assert' will use 'cm'.
         If 'progress' is True, inform when done.
-
         """
         vout = self.vrfyout     # verify-out stream
         self.send(cm)
@@ -191,3 +222,9 @@ class BoardComm:
             resplines = resplines[:-1]
 
         return resplines
+
+
+if __name__ == '__main__':
+    comm = BoardComm()
+    comPort = comm.find_and_connect(echo=0)
+    comm.disconnect(comPort, echo=0)
