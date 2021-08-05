@@ -57,7 +57,7 @@ class BoardComm:
 
     def connect(self, comport, echo=0):
         try:
-            self.handle = serial.Serial(comport, self.baudrate, timeout=60)
+            self.handle = serial.Serial(comport, self.baudrate, timeout=600)
             # print(self.handle)
         except serial.SerialException:
             print("Error: cannot open", comport)

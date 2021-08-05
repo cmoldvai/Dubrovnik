@@ -2,6 +2,7 @@ from dubLibs import boardcom
 # import sys
 
 pageSize = 0x100
+wel = '06'
 led_dict = {'r1': '9', 'g1': '11', 'b1': '10',
             'r2': '14', 'g2': '13', 'b2': '12'}
 
@@ -17,7 +18,23 @@ def dispmode(comm, mode='b'):
         comm : The handle to the comm port to communicate with the Dubrovnik board
         mode : 'b' for the byte, 'w' for double-word
     """
-    comm.send('dispmode ' + mode)
+    comm.send(f'dispmode {mode}')
+    return None
+
+
+def echo(comm, onoff):
+    """This function will turn the echo on/off for dubrovnik
+    Parameters:
+        The function requires 2 input arguments,
+        comm  : The handle to the comm port to communicate with the Dubrovnik board
+        onoff : 'on' or 'off' to set the echo
+    The function has no return value
+    """
+
+    if onoff.lower() in ['on', 'off']:
+        comm.send(f'echo {onoff}')
+    else:
+        print('Echo variable onoff must be "on" or "off".')
     return None
 
 
@@ -47,7 +64,6 @@ def tohex(num):
         print(tohex(0x3)
         out: '03'
     """
-
     if type(num) is int:
         bs = format(num, "02x")
     elif type(num) is str:
@@ -64,51 +80,96 @@ def tohex(num):
 
 
 def get_wait_time(comm):
+    """
+    Returns the elapsed time for the 'wait' command to complete.
+    To work, previously a 'wait 0' or a 'wait 1' command must be issued.
+    Signifies the time while the RDY#/BUSY bit was set to 0 or 1.
+    """
     comm.send('dvar wait_time')
-    return (comm.response())
+    resp = comm.resp()[0].split(' ')
+    t_wait = int(resp[0])
+
+    if t_wait < 1e3:
+        wait_time = f'{t_wait} us'
+    elif t_wait >= 1e3 and t_wait < 1e6:
+        wait_time = f'{t_wait/1e3:.3f} ms'
+    else:
+        wait_time = f'{t_wait/1e6:.3f} sec'
+    return wait_time
 
 
-# TODO: REVIEW use Eyal's version with page boundaries
-def page_program(comm, start_addr=0, nbyte=0, pattern='cafe0000',
-                 increment='0'):
-    opcode = '02'
-    wel = '06;'
-    cmdstr = f'pattern {pattern} {increment}'
+def get_config(comm):
+    """
+    Sends config command, parses it and returns
+    a dictionary with config parameters
+    """
+    config_dict = {}
+    comm.send('config')
+    config = comm.resp()
+    for item in config:
+        conf = item.split('=')
+        key = conf[0].strip()
+        if 'PMON conf' in key:
+            continue  # skip "PMON configuration" subtitle
+        val = conf[1].strip()
+        config_dict[key] = val
+    return config_dict
+
+
+def get_part_number(comm):
+    """
+    Sends config command, parses the response and returns device Part Number
+    """
+    comm.send('config')
+    resp = comm.resp()[0]
+    return resp.split('=')[1].strip()
+
+
+def read(comm, opcode='0b', start_addr=0, length=256, dispmode='b', echo=1):
+    comm.send(f'dispmode {dispmode}')
+    cmdstr = f'{opcode} {start_addr:x} {length:x}'
     comm.send(cmdstr)
-    cmdstr = f'{wel} {opcode} {start_addr:x} {nbyte:x}; wait 0'
-    comm.send(cmdstr)
+    resp = comm.response()
+    if echo == 1:
+        print(resp)
+    return resp
 
 
-def pattern_program(comm, start_addr=0, end_addr=0, pattern='cafe0000',
-                    increment='0', echo=0):
-    cmdstr = f'pattern {pattern} {increment}'
-    comm.send(cmdstr)
-    opcode = '02'
-    wel = '06'
-    # pageSize = 0x100
-    addr = start_addr
-    while addr < end_addr:
-        pageEnd = addr - (addr % pageSize) + pageSize
-        if pageEnd > end_addr:
-            pageEnd = end_addr
-        progSize = pageEnd - addr
-        cmdstr = f'{wel}; {opcode} {addr:x} {progSize:x}; wait 0'
-        if echo == 1:
-            print(cmdstr)
-        comm.send(cmdstr)
-        addr = pageEnd
+def read_id(comm, opcode='9f ', narg=2, echo=1):
+    comm.send(opcode + str(narg))
+    if echo == 1:
+        print(comm.response())
+
+
+def file_loader(datafile):
+    """
+    * opens filename
+    * reads it into a binary array
+    * converts it into a specific format
+    * returns the binary array
+    """
+    try:
+        fh = open(datafile, 'rb')
+    except FileNotFoundError:
+        print("Error: file", datafile, "not found")
+        exit()
+
+    data_array = fh.read()
+    return data_array
 
 
 def srec_file_loader(srec_filename):
-    # opens srec_filename
-    # reads it line by line
-    # processes data lines which start with S1, S2, S3
-    # finds gaps in the data a essentially breaking it to
-    # a list of contiguous blocks
-    # returns:
-    # 1. a list of start addresses, one per contiguous block
-    # 2. a list of matching binary arrays, holding the data
-    # for each contiguous block
+    """
+    * opens srec_filename
+    * reads it line by line
+    * processes data lines which start with S1, S2, S3
+    * finds gaps in the data a essentially breaking it to
+    * a list of contiguous blocks
+    * returns:
+    * 1. a list of start addresses, one per contiguous block
+    * 2. a list of matching binary arrays, holding the data
+    * for each contiguous block
+    """
     try:
         fh = open(srec_filename, 'r')
     except FileNotFoundError:
@@ -142,25 +203,12 @@ def srec_file_loader(srec_filename):
     return (addr_list, block_list)
 
 
-def file_loader(datafile):
-    # opens filename
-    # reads it into a binary array
-    # converts it into a specific format
-    # returns the binary array
-    try:
-        fh = open(datafile, 'rb')
-    except FileNotFoundError:
-        print("Error: file", datafile, "not found")
-        exit()
-
-    data_array = fh.read()
-    return data_array
-
-
 def write_buf_write(comm, inp_arr, dsize):
-    # takes an input binary array
-    # loads the data from the binary array into the
-    # test bench write buffer using a sequence of 'write' commands
+    """
+    * takes an input binary array
+    * loads the data from the binary array into the
+    * test bench write buffer using a sequence of 'write' commands
+    """
     offst = 0
     while offst < dsize:
         if dsize - offst >= 16:
@@ -177,10 +225,12 @@ def write_buf_write(comm, inp_arr, dsize):
 
 
 def data_program(comm, data_array, start_addr=0):
-    # gets a binary data array from the caller
-    # programs binary data page by page
-    # first writing the page data into the test bench write buffer
-    # then performing a test bench program operation
+    """
+    * gets a binary data array from the caller
+    * programs binary data page by page
+    * first writing the page data into the test bench write buffer
+    * then performing a test bench program operation
+    """
     idx = 0
     addr = start_addr
     end_addr = start_addr + len(data_array)
@@ -191,52 +241,112 @@ def data_program(comm, data_array, start_addr=0):
         progSize = pageEnd - addr
         # cmdstr = write_buf_write(comm, data_array[idx:idx+progSize], progSize)
         write_buf_write(comm, data_array[idx:idx+progSize], progSize)
-        # cmdstr = "06;02 " + format(addr, 'x') + " " + format(progSize, 'x') + ";wait 0"
         cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
         comm.send(cmdstr)
         addr = pageEnd
+    return get_wait_time(comm)
+
+
+def page_program(comm, start_addr=0, length=0):
+    addr = start_addr
+    end_addr = start_addr + length
+    while addr < end_addr:
+        pageEnd = addr - (addr % pageSize) + pageSize
+        if pageEnd > end_addr:
+            pageEnd = end_addr
+        progSize = pageEnd - addr
+        cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
+        comm.send(cmdstr)
+        addr = pageEnd
+    return get_wait_time(comm)
+
+
+def pattern_program(comm, start_addr=0, length=0, pattern='cafe0000',
+                    increment='0', echo=0):
+    """
+    * creates a pattern in the write buffer
+      pattern   : 4 byte hex number
+      increment : a positive or negative increment added to the pattern
+    * programs 'length' bytes from the write buffer into the flash
+      from start_addr.
+    """
+    # create a pattern in the write buffer
+    cmdstr = f'pattern {pattern} {increment}'
+    comm.send(cmdstr)
+
+    addr = start_addr
+    end_addr = start_addr + length
+    while addr < end_addr:
+        pageEnd = addr - (addr % pageSize) + pageSize
+        if pageEnd > end_addr:
+            pageEnd = end_addr
+        progSize = pageEnd - addr
+        cmdstr = f'06; 02 {addr:x} {progSize:x}; wait 0'
+
+        if echo == 1:
+            print(cmdstr)
+        comm.send(cmdstr)
+        addr = pageEnd
+    return get_wait_time(comm)
 
 
 def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
                 trig=False, echo=0):
-    wel = '06'
-    blockSizeKB = block_size * 1024
-    startAddr = (start_addr // blockSizeKB) * blockSizeKB
-    # print(startAddr)
-    if block_size == 4:
-        opcode = '20'
-    elif block_size == 32:
-        opcode = '52'
-    elif block_size == 64:
-        opcode = 'd8'
-    else:
-        raise ValueError("Incorrect block size")
-    addr = startAddr
-    for n in range(0, num_blocks):
+    '''
+    Parameters:
+    comm       : handle of the communication port
+    block_size : size of the memory block to be erased [kB]. Can be: 4kB, 32kB, 64kB or 'chip' for chip erase
+    start_addr : start address [decimal] of the first erased block (aligned with the multiple of block_size)
+    num_blocks : the number of blocks to erase
+    trig       : 'True' toggles a GPIO, HIGH at the beginning and LOW at the end of an Erase operation
+                 (can be used to trigger a scope)
+    echo       : '1' turns on printing intermediate commands sent to the flash,
+                  also prints Erase Time
+
+    Return value    : erase time in us/ms/sec (time it took to erase the specified chunk of memory block)
+    '''
+    erase_time = 0
+    if block_size == 'chip':
+        print('Chip Erase in progress...')
+        opcode = 'c7'  # OpCode for chip erase: 60h or C7h
         if trig:
-            cmdstr = f'{wel}; trig 1;{opcode} {addr:x}; wait 0; trig 0'
-            # print(cmdstr)
+            cmdstr = f'{wel}; trig 1;{opcode}; wait 0; trig 0'
         else:
-            cmdstr = f'{wel}; {opcode} {addr:x}; wait 0'
-            # print(cmdstr)
+            cmdstr = f'{wel}; {opcode}; wait 0'
         comm.send(cmdstr)
         if echo == 1:
+            print(cmdstr)
             print(comm.response())
-        addr += blockSizeKB
-    return 0
-
-
-def read(comm, opcode='0b', staddr=0, length=256, echo=1):
-    cmdstr = f'{opcode} {staddr:x} {length:x}'
-    comm.send(cmdstr)
+        print('Done.')
+    else:
+        blockSizeKB = block_size * 1024
+        startAddr = (start_addr // blockSizeKB) * blockSizeKB
+        if block_size == 4:
+            opcode = '20'
+        elif block_size == 32:
+            opcode = '52'
+        elif block_size == 64:
+            opcode = 'd8'
+        else:
+            raise ValueError("Incorrect block size")
+        addr = startAddr
+        for n in range(0, num_blocks):
+            if trig:
+                cmdstr = f'{wel}; trig 1;{opcode} {addr:x}; wait 0; trig 0'
+            else:
+                cmdstr = f'{wel}; {opcode} {addr:x}; wait 0'
+            comm.send(cmdstr)
+            if echo == 1:
+                print(comm.response())
+            addr += blockSizeKB
+            wt = get_wait_time(comm).split(' ')
+            erase_time += float(wt[0])
+        unit = wt[1]
+        t_erase = f'{erase_time:.3f} {unit}'
+    # NOTE: chip boardcom may time out if erase time is too long (600sec or more)
     if echo == 1:
-        print(comm.response())
-
-
-def read_id(comm, opcode='9f ', narg=2, echo=1):
-    comm.send(opcode + str(narg))
-    if echo == 1:
-        print(comm.response())
+        print(t_erase)
+    return t_erase
 
 
 def pmon_calib(comm, domain):
@@ -317,22 +427,6 @@ def pmoncfg(comm, avg=None, vbt=None, vst=None, mode=None, meas=None):
 #     comm.send(cmd_str)
 
 
-def echo(comm, onoff):
-    """This function will turn the echo on/off for dubrovnik
-    Parameters:
-        The function requires 2 input arguments,
-        comm  : The handle to the comm port to communicate with the Dubrovnik board
-        onoff : 'on' or 'off' to set the echo
-    The function has no return value
-    """
-
-    if onoff.lower() in ['on', 'off']:
-        comm.send("echo " + onoff)
-    else:
-        print('Echo variable onoff must be "on" or "off".')
-    return None
-
-
 def set_spi_mode(spi_mode):
     if spi_mode == 'spi':
         # READ OpCode in SPI: 03 (legacy), 0B (fast read)
@@ -371,67 +465,67 @@ def wr_buffer(comm, spi_mode):
     return start_addr
 
 
-def flash_program(comm):
-    print('******************************')
-    print('  Program Flash with Pattern  ')
-    print('******************************')
-    print('0x0000 : "aaaaaaaa"')
-    print('0x4000 : "00000000"')
-    print('0x8000 : "ffffffff"')
-    print('0xc000 : "f0f0f0f0"')
-    print('0x10000: "ff00ff00"')
-    print('Start programming ')
-    # Blocks of N * nbyte are programmed with a sellected pattn
-    N = 0x40  # 0x40 * 0x100 = 64 * 256 = 16KB
-    base = 0
-    end_addr = base + N * pageSize
-    print(hex(base))
-    pattn = 'aaaaaaaa'
-    incr = '0'
-    pattern_program(comm, start_addr=base, end_addr=end_addr,
-                    pattern=pattn, increment=incr)
+# def flash_program(comm):
+#     print('******************************')
+#     print('  Program Flash with Pattern  ')
+#     print('******************************')
+#     print('0x0000 : "aaaaaaaa"')
+#     print('0x4000 : "00000000"')
+#     print('0x8000 : "ffffffff"')
+#     print('0xc000 : "f0f0f0f0"')
+#     print('0x10000: "ff00ff00"')
+#     print('Start programming ')
+#     # Blocks of N * nbyte are programmed with a sellected pattn
+#     N = 0x40  # 0x40 * 0x100 = 64 * 256 = 16KB
+#     base = 0
+#     end_addr = base + N * pageSize
+#     print(hex(base))
+#     pattn = 'aaaaaaaa'
+#     incr = '0'
+#     pattern_program(comm, start_addr=base, end_addr=end_addr,
+#                     pattern=pattn, increment=incr)
 
-    base = base + N * 0x100
-    end_addr = base + N * pageSize
-    print(hex(base))
-    pattn = '00000000'
-    incr = '0'
-    pattern_program(comm, start_addr=base, end_addr=end_addr,
-                    pattern=pattn, increment=incr)
+#     base = base + N * 0x100
+#     end_addr = base + N * pageSize
+#     print(hex(base))
+#     pattn = '00000000'
+#     incr = '0'
+#     pattern_program(comm, start_addr=base, end_addr=end_addr,
+#                     pattern=pattn, increment=incr)
 
-    base = base + N * 0x100
-    end_addr = base + N * pageSize
-    print(hex(base))
-    pattn = 'ffffffff'
-    incr = '0'
-    pattern_program(comm, start_addr=base, end_addr=end_addr,
-                    pattern=pattn, increment=incr)
+#     base = base + N * 0x100
+#     end_addr = base + N * pageSize
+#     print(hex(base))
+#     pattn = 'ffffffff'
+#     incr = '0'
+#     pattern_program(comm, start_addr=base, end_addr=end_addr,
+#                     pattern=pattn, increment=incr)
 
-    base = base + N * 0x100
-    end_addr = base + N * pageSize
-    print(hex(base))
-    pattn = 'f0f0f0f0'
-    incr = '0'
-    pattern_program(comm, start_addr=base, end_addr=end_addr,
-                    pattern=pattn, increment=incr)
+#     base = base + N * 0x100
+#     end_addr = base + N * pageSize
+#     print(hex(base))
+#     pattn = 'f0f0f0f0'
+#     incr = '0'
+#     pattern_program(comm, start_addr=base, end_addr=end_addr,
+#                     pattern=pattn, increment=incr)
 
-    base = base + N * 0x100
-    end_addr = base + N * pageSize
-    print(hex(base))
-    pattn = 'ff00ff00'
-    incr = '0'
-    pattern_program(comm, start_addr=base, end_addr=end_addr,
-                    pattern=pattn, increment=incr)
+#     base = base + N * 0x100
+#     end_addr = base + N * pageSize
+#     print(hex(base))
+#     pattn = 'ff00ff00'
+#     incr = '0'
+#     pattern_program(comm, start_addr=base, end_addr=end_addr,
+#                     pattern=pattn, increment=incr)
 
-    print('*********************')
-    print('  Verify Program     ')
-    print('*********************')
-    # Read 2 pages at addresses in increments of 0x4000
-    for i in range(0, 6):
-        base = 0x4000 * i
-        for j in range(0, 2):
-            addr = base + 256 * j
-            read(comm, opcode='b', staddr=addr, length=0x100)
+#     print('*********************')
+#     print('  Verify Program     ')
+#     print('*********************')
+#     # Read 2 pages at addresses in increments of 0x4000
+#     for i in range(0, 6):
+#         base = 0x4000 * i
+#         for j in range(0, 2):
+#             addr = base + 256 * j
+#             read(comm, opcode='b', start_addr=addr, length=0x100)
 
 
 if __name__ == '__main__':

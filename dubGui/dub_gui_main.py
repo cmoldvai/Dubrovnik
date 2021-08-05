@@ -219,15 +219,13 @@ class Program(Frame):
         if self.progModeVar.get() == 'pattern':
             print('startAddr: %x, dataLen: %x, pattn: %s, incr: %s' %
                   (startAddr, dataLen, pattn, incr))
-            endAddr = startAddr + dataLen
-            du.pattern_program(self.comm, startAddr, endAddr, pattn, incr)
+            du.pattern_program(self.comm, startAddr, dataLen, pattn, incr)
             print('programming done.')
         else:   # if programming a content of a file
             dsize = len(self.progData)
             du.write_buf_write(comm, self.progData, dsize)
             du.data_program(comm, self.progData, startAddr)
             pass
-
 
     def openFile(self):
         filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
@@ -239,7 +237,7 @@ class Program(Frame):
             with open(filename, 'rb') as f:
                 # self.progData = bytes(f.read(), 'utf-8')
                 self.progData = f.read()
-                print(self.progData)
+                # print(self.progData)
 
     def program_test(self):
         self.get_states()
@@ -311,28 +309,22 @@ class Erase(Frame):
     def blockErase(self):
         serCom.checkConnection()  # check if board is connected
         blkSzStr = self.blockSize.get()
+
         if blkSzStr == 'Chip':
             print('Erasing entire chip')
-            self.comm.send('6; 60; wait 0')
-            print(self.comm.response())
+            erase_time = du.block_erase(self.comm, block_size='chip', echo=1)
+            # self.comm.send('6; 60; wait 0')
+            # print(self.comm.response())
             print('Chip erase done.')
         else:
-            # must be in else, otherwise it fails for 'Chip'
-            # don't change it to hex int(blkSzStr, 16). Will fail
-            block_size = int(blkSzStr)
+            block_size = int(blkSzStr)  # don't change it to hex int(blkSzStr, 16). Will fail!
             start_addr = int(self.startAddr.get(), 16)
-            # # Calculating the actual start addresses:
-            # mask = ~((block_size * 1024) - 1)  #! Tricky. Pay attention:
-            # actStartAddr = start_addr & mask
-            print(f'Start address = {start_addr:x}')
-            # print(f'Actual start address = {actStartAddr:x}')
-            numm_blocks = int(self.numBlocks.get(), 16)
-            print(f'Erasing {numm_blocks} {block_size}kB block(s)')
-            du.block_erase(self.comm, block_size=block_size,
-                           start_addr=start_addr, num_blocks=numm_blocks)
-            print('Block erase done.')
-
-        print('Elapsed time: {}ms')
+            num_blocks = int(self.numBlocks.get(), 16)
+            blockSizeKB = block_size * 1024
+            startAddr = (start_addr // blockSizeKB) * blockSizeKB
+            print(f'Erasing {num_blocks} {block_size}kB block(s) from address {startAddr:x}')
+            erase_time = du.block_erase(self.comm, block_size, start_addr, num_blocks)
+        print(f'Elapsed time: {erase_time}')
 
     def erase_test(self):
         print(f'Selected Erase Block Size : {self.blockSize.get()}')
@@ -409,7 +401,7 @@ class Read(Frame):
         print(f'SPI Mode      : {self.spiMode.get()}')
         print(f'Start Address : {readStartAddr}')
         print(f'Read Lenght   : {readLen}')
-        du.read(comm, staddr=readStartAddr, length=readLen, echo=1)
+        du.read(comm, start_addr=readStartAddr, length=readLen, echo=1)
 
 
 if __name__ == "__main__":
