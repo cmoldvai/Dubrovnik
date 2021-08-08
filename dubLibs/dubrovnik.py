@@ -7,7 +7,7 @@ led_dict = {'r1': '9', 'g1': '11', 'b1': '10',
             'r2': '14', 'g2': '13', 'b2': '12'}
 
 
-def version(comm):
+def get_version(comm):
     ver = cmd(comm, 'ver')
     return ver
 
@@ -22,7 +22,7 @@ def dispmode(comm, mode='b'):
     return None
 
 
-def echo(comm, onoff):
+def global_echo(comm, onoff):
     """This function will turn the echo on/off for dubrovnik
     Parameters:
         The function requires 2 input arguments,
@@ -79,22 +79,25 @@ def tohex(num):
     return bs
 
 
-def get_wait_time(comm):
+def get_wait_time_us(comm):
     """
-    Returns the elapsed time for the 'wait' command to complete.
-    To work, previously a 'wait 0' or a 'wait 1' command must be issued.
-    Signifies the time while the RDY#/BUSY bit was set to 0 or 1.
+    The 'wait 0/1' command polls the RDY#/BUSY bit and stores the time it was set to 0/1
+    To work, previously a 'wait 0' or a 'wait 1' command must be issued
+    Returns the elapsed time in microseconds
     """
     comm.send('dvar wait_time')
-    resp = comm.resp()[0].split(' ')
-    t_wait = int(resp[0])
+    t_wait = comm.resp()[0]  # returns a list with a single element ('[time] us')
+    wait_time_us = int(t_wait.split(' ')[0])  # strips off the 'us' and converts to int
+    return wait_time_us
 
-    if t_wait < 1e3:
-        wait_time = f'{t_wait} us'
-    elif t_wait >= 1e3 and t_wait < 1e6:
-        wait_time = f'{t_wait/1e3:.3f} ms'
+
+def time_unit_conversion(elapsed_time):
+    if elapsed_time < 1e3:
+        wait_time = f'{elapsed_time} us'
+    elif elapsed_time >= 1e3 and elapsed_time < 1e6:
+        wait_time = f'{elapsed_time/1e3:.3f} ms'
     else:
-        wait_time = f'{t_wait/1e6:.3f} sec'
+        wait_time = f'{elapsed_time/1e6:.3f} sec'
     return wait_time
 
 
@@ -125,7 +128,15 @@ def get_part_number(comm):
     return resp.split('=')[1].strip()
 
 
-def read(comm, opcode='0b', start_addr=0, length=256, dispmode='b', echo=1):
+# TODO: instad of providing the opcode, should we have separate read commands for each read types?
+# read_0b or fast_read
+# read_03 or legacy_read
+# read_114
+# read_144
+# read_444
+# read_888
+
+def read(comm, start_addr=0, length=256, echo=1, dispmode='b', opcode='0b'):
     comm.send(f'dispmode {dispmode}')
     cmdstr = f'{opcode} {start_addr:x} {length:x}'
     comm.send(cmdstr)
@@ -244,7 +255,7 @@ def data_program(comm, data_array, start_addr=0):
         cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
         comm.send(cmdstr)
         addr = pageEnd
-    return get_wait_time(comm)
+    return get_wait_time_us(comm)
 
 
 def page_program(comm, start_addr=0, length=0):
@@ -258,7 +269,7 @@ def page_program(comm, start_addr=0, length=0):
         cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
         comm.send(cmdstr)
         addr = pageEnd
-    return get_wait_time(comm)
+    return get_wait_time_us(comm)
 
 
 def pattern_program(comm, start_addr=0, length=0, pattern='cafe0000',
@@ -287,7 +298,7 @@ def pattern_program(comm, start_addr=0, length=0, pattern='cafe0000',
             print(cmdstr)
         comm.send(cmdstr)
         addr = pageEnd
-    return get_wait_time(comm)
+    return get_wait_time_us(comm)
 
 
 def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
@@ -339,14 +350,11 @@ def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
             if echo == 1:
                 print(comm.response())
             addr += blockSizeKB
-            wt = get_wait_time(comm).split(' ')
-            erase_time += float(wt[0])
-        unit = wt[1]
-        t_erase = f'{erase_time:.3f} {unit}'
+            erase_time += get_wait_time_us(comm)
     # NOTE: chip boardcom may time out if erase time is too long (600sec or more)
     if echo == 1:
-        print(t_erase)
-    return t_erase
+        print(f'Erase time = {erase_time} us')
+    return erase_time
 
 
 def pmon_calib(comm, domain):
@@ -430,9 +438,9 @@ def pmoncfg(comm, avg=None, vbt=None, vst=None, mode=None, meas=None):
 def set_spi_mode(spi_mode):
     if spi_mode == 'spi':
         # READ OpCode in SPI: 03 (legacy), 0B (fast read)
-        return '0B'
+        return '0b'
     elif spi_mode == 'q114':
-        return '6B'                 # READ OpCode in QSPI 1-1-4
+        return '6b'                 # READ OpCode in QSPI 1-1-4
     elif spi_mode == 'q144':
         return 'eb'                 # READ OpCode in QSPI 1-4-4
     elif spi_mode == 'q044':
@@ -465,67 +473,23 @@ def wr_buffer(comm, spi_mode):
     return start_addr
 
 
-# def flash_program(comm):
-#     print('******************************')
-#     print('  Program Flash with Pattern  ')
-#     print('******************************')
-#     print('0x0000 : "aaaaaaaa"')
-#     print('0x4000 : "00000000"')
-#     print('0x8000 : "ffffffff"')
-#     print('0xc000 : "f0f0f0f0"')
-#     print('0x10000: "ff00ff00"')
-#     print('Start programming ')
-#     # Blocks of N * nbyte are programmed with a sellected pattn
-#     N = 0x40  # 0x40 * 0x100 = 64 * 256 = 16KB
-#     base = 0
-#     end_addr = base + N * pageSize
-#     print(hex(base))
-#     pattn = 'aaaaaaaa'
-#     incr = '0'
-#     pattern_program(comm, start_addr=base, end_addr=end_addr,
-#                     pattern=pattn, increment=incr)
-
-#     base = base + N * 0x100
-#     end_addr = base + N * pageSize
-#     print(hex(base))
-#     pattn = '00000000'
-#     incr = '0'
-#     pattern_program(comm, start_addr=base, end_addr=end_addr,
-#                     pattern=pattn, increment=incr)
-
-#     base = base + N * 0x100
-#     end_addr = base + N * pageSize
-#     print(hex(base))
-#     pattn = 'ffffffff'
-#     incr = '0'
-#     pattern_program(comm, start_addr=base, end_addr=end_addr,
-#                     pattern=pattn, increment=incr)
-
-#     base = base + N * 0x100
-#     end_addr = base + N * pageSize
-#     print(hex(base))
-#     pattn = 'f0f0f0f0'
-#     incr = '0'
-#     pattern_program(comm, start_addr=base, end_addr=end_addr,
-#                     pattern=pattn, increment=incr)
-
-#     base = base + N * 0x100
-#     end_addr = base + N * pageSize
-#     print(hex(base))
-#     pattn = 'ff00ff00'
-#     incr = '0'
-#     pattern_program(comm, start_addr=base, end_addr=end_addr,
-#                     pattern=pattn, increment=incr)
-
-#     print('*********************')
-#     print('  Verify Program     ')
-#     print('*********************')
-#     # Read 2 pages at addresses in increments of 0x4000
-#     for i in range(0, 6):
-#         base = 0x4000 * i
-#         for j in range(0, 2):
-#             addr = base + 256 * j
-#             read(comm, opcode='b', start_addr=addr, length=0x100)
+def paint_flash_with_pattern(comm, params):
+    '''Paint flash with pattern
+    It will paint the flash with a pattern from start_addr with lenght bytes
+    until the list is exhausted.
+    Parameters are provided in a list of lists:
+    [[start_address0, length0, pattern0]
+     [start_address1, length1, pattern1]]
+    Returns the total programming time
+    '''
+    prog_time = 0
+    for param in params:
+        start_addr = param[0]
+        length = param[1]
+        pattern = param[2]
+        # print(start_addr, length, pattern)
+        prog_time += pattern_program(comm, start_addr, length, pattern, echo=0)
+    return prog_time
 
 
 if __name__ == '__main__':
@@ -533,15 +497,15 @@ if __name__ == '__main__':
     comm = boardcom.BoardComm()
     comPort = comm.find_and_connect(echo=1)
 
-    block_erase(comm, echo=1)
-    wait_time = get_wait_time(comm)
-    print(wait_time)
+    # erase_time = block_erase(comm, block_size=4, num_blocks=4, echo=0)
+    # t_erase = time_unit_conversion(erase_time)
+    # print(t_erase)
 
-    data_array = file_loader(r'C:\MyLibs\Dubrovnik\dubScripts\Tesla.bin')
+    data_array = file_loader(r'C:\MyLibs\Dubrovnik\dubScripts\a_bin_file.bin')
     # print(df)
     dsize = len(data_array)
-    # write_buf_write(comm, data_array, dsize)
-    # data_program(comm, data_array, start_addr=0)
+    write_buf_write(comm, data_array, dsize)
+    data_program(comm, data_array, start_addr=0)
     read(comm, length=dsize)
 
     # ***** Disconnect

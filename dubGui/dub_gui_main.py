@@ -74,6 +74,7 @@ class SerCom(Frame):
             # self.btn2['text'] = 'Disconnect'
             self.portStatus = 'connected'  # update connection status
             serParams = f'Connected: {self.comPort} ({self.comBaudrate},{self.comBytesize},{self.comParity},{self.comStopbits},{self.comXonXoff})'
+            serParams = serParams + '    Device: ' + du.get_part_number(comm)
             stsBarComm.config(text=serParams)
 
         elif self.portStatus == 'connected':
@@ -217,15 +218,17 @@ class Program(Frame):
         serCom.checkConnection()  # check if board is connected
         self.get_states()
         if self.progModeVar.get() == 'pattern':
-            print('startAddr: %x, dataLen: %x, pattn: %s, incr: %s' %
-                  (startAddr, dataLen, pattn, incr))
-            du.pattern_program(self.comm, startAddr, dataLen, pattn, incr)
-            print('programming done.')
+            print(f'startAddr: {startAddr:X}, dataLen: {dataLen:x}, pattn: {pattn}, incr: {incr}')
+            print('Programming...')
+            t_prog = du.pattern_program(self.comm, startAddr, dataLen, pattn, incr)
         else:   # if programming a content of a file
             dsize = len(self.progData)
+            print('Downloading data...')
             du.write_buf_write(comm, self.progData, dsize)
-            du.data_program(comm, self.progData, startAddr)
-            pass
+            print('Programming...')
+            t_prog = du.data_program(comm, self.progData, startAddr)
+        prog_time = du.time_unit_conversion(t_prog)
+        print(f'Actual programming time: {prog_time}')
 
     def openFile(self):
         filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
@@ -323,7 +326,8 @@ class Erase(Frame):
             blockSizeKB = block_size * 1024
             startAddr = (start_addr // blockSizeKB) * blockSizeKB
             print(f'Erasing {num_blocks} {block_size}kB block(s) from address {startAddr:x}')
-            erase_time = du.block_erase(self.comm, block_size, start_addr, num_blocks)
+            t_erase = du.block_erase(self.comm, block_size, start_addr, num_blocks)
+            erase_time = du.time_unit_conversion(t_erase)
         print(f'Elapsed time: {erase_time}')
 
     def erase_test(self):
