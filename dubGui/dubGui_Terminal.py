@@ -18,10 +18,6 @@ class SerCom(Frame):
         self.portHandle = None
         self.chk_var = IntVar()
         self.autoConnect = 0
-        # with open('dubrovnik.pkl', 'rb') as fname:
-        #     cfg = pickle.load(fname)
-        #     print(cfg)
-        #     self.autoConnect = cfg['autoConnect']
         self.chk_var.get()
         self.buildFrame()
 
@@ -39,13 +35,8 @@ class SerCom(Frame):
                            command=self.connectPort)
         self.btn2.grid(row=0, column=2, padx=10)
 
-        self.btn3 = Button(self, text='Save Config', width=10,
-                           command=self.saveConfig)
-        self.btn3.grid(row=0, column=3, padx=10, sticky=E)
-
         if self.DEBUG:
-            self.test_btn = Button(self, text='Testing',
-                                   width=10, command=self.testing)
+            self.test_btn = Button(self, text='Testing', width=10, command=self.testing)
             self.test_btn.grid(row=1, column=0, padx=5, pady=10, columnspan=1)
             self.test_lbl = Label(
                 self, text="Debug message:", anchor=W, justify='left')
@@ -64,17 +55,7 @@ class SerCom(Frame):
             self.portHandle = self.comm.connect(
                 self.selPort)  # TODO check if need assignment
             self.setSerialParams()
-            # ... and get parameters
-            # self.comPort = self.portHandle.port
-            # self.comBaudrate = self.portHandle.baudrate
-            # self.comBytesize = self.portHandle.bytesize
-            # self.comParity = self.portHandle.parity
-            # self.comStopbits = self.portHandle.stopbits
-            # self.comXonXoff = self.portHandle.xonxoff
-            # change button label
-            # two ways of doing it: config(text=) and dict['text']
             self.btn2.config(text='Disconnect')
-            # self.btn2['text'] = 'Disconnect'
             # update connection status
             self.portStatus = 'connected'
         elif self.portStatus == 'connected':
@@ -106,14 +87,6 @@ class SerCom(Frame):
         self.comParity = self.portHandle.parity
         self.comStopbits = self.portHandle.stopbits
         self.comXonXoff = self.portHandle.xonxoff
-
-    def saveConfig(self):
-        chk_value = self.chk_var.get()
-        D = {'autoConnect': chk_value, 'comPort': 'COM5', 'selPort': 1}
-        print(D)
-        f = open('dubrovnik.pkl', 'wb')
-        pickle.dump(D, f)
-        f.close()
 
 
 if __name__ == '__main__':

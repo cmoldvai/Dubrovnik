@@ -1,7 +1,8 @@
-# import time
-# from time import sleep
+import os
+import sys
+from time import sleep
 from dubLibs import boardcom
-# from dubLibs import dubrovnik as du
+from dubLibs import dubrovnik as du
 
 print('*********************************')
 print('***** DataFlash Read Script *****')
@@ -22,31 +23,25 @@ connectedPort = comm.find_and_connect(echo=1)
 # #################################
 
 # ENTER System Parameters Here
-freq = 20   # select between 8 to 60
+freq = 8   # chose 8 (8.25), 15 (14.67) or 30 (29.33)
+pmon_id = '5'
 
-cmd = 'freq ' + str(freq)
-comm.send(cmd)
-
-# Read SW version
-comm.send('ver')
-version = comm.response()
-print(version)
+du.cmd(comm, f'freq {freq}')
+du.cmd(comm, 'dispmode w')
 
 # Read board configuration and reset the chip
-comm.send('config')
-cfg = comm.response()
-print(cfg)
-config = cfg.split('\n')
-partNumber = config[1].split('=')[1].split(' ')[1].upper()
-voltage = config[2].split('=')[1].split(' ')[1].lower()
+print(du.get_version(comm))
+config = du.get_config(comm)
+print(config)
+partNumber = config['Part#'].upper()
+voltage = config['Voltage']
+min_dly = int(config['min meas time (us)'])
 
-dispmode = 'b'  # byte format
-# dispmode = 'w'  # 32-bit word format
+if partNumber == 'UNKNOWN':
+    voltage = '1.8'  # don't go higher, it may damage the MCU VCC_SD input
 
-if dispmode == 'b':
-    comm.send('dispmode b')
-else:
-    comm.send('dispmode w')
+# the previous run may have left it at low voltage
+comm.send(f'psset 0 {voltage}')
 
 # **********************************
 # ********* VER 1 ******************

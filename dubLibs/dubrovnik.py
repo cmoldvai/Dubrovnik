@@ -91,6 +91,7 @@ def get_wait_time_us(comm):
     return wait_time_us
 
 
+# TODO rename: usec_to_bestTimeUnit(elapsed_time)
 def time_unit_conversion(elapsed_time):
     if elapsed_time < 1e3:
         wait_time = f'{elapsed_time} us'
@@ -117,6 +118,14 @@ def get_config(comm):
         val = conf[1].strip()
         config_dict[key] = val
     return config_dict
+
+
+def set_host_dummy_cycles(comm, num_dummy=4):
+    comm.send(f'dummy {num_dummy}')
+
+
+def set_flash_dummy_cycles(comm, num_dummy=4):
+    pass
 
 
 def get_part_number(comm):
@@ -375,7 +384,7 @@ def pmon_calib(comm, domain):
     comm.send('dispmode b')
     comm.send('dump w 0 10')
     print(comm.response())
-    comm.send('eepwr {addr} 2')
+    comm.send(f'eepwr {addr} 2')
     comm.send('eeprd 0 10')
     print(comm.response())
 

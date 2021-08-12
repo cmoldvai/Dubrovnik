@@ -1,16 +1,11 @@
 import time
 from dubLibs import boardcom
 
-# ***************************
-# *****     M A I N     *****
-# ***************************
-
+# *********************
+# *****  Connect  *****
+# *********************
 comm = boardcom.BoardComm()   # create an instance of class BoardComm
-portList = comm.findPorts()
-print(portList)
-connectedPort = portList[0]
-comm.connect(connectedPort)
-print('Connection established...')
+connectedPort = comm.find_and_connect(echo=1)
 
 print("Dump SFDP before patch")
 comm.send("5a 0 100")
@@ -66,7 +61,4 @@ print(comm.response())
 # ***********************************
 # ***** Disconnect, Delete Port *****
 # ***********************************
-comm.disconnect(connectedPort)
-del comm
-print('\nDisconnected...')
-print("COM port deleted\n")
+comm.disconnect(connectedPort, echo=1)

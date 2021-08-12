@@ -7,7 +7,7 @@ from tkinter import ttk
 from dubLibs import boardcom
 from dubLibs import dubrovnik as du
 from tkinter.filedialog import askopenfilename
-from tkinter.messagebox import askretrycancel, showerror
+from tkinter.messagebox import askretrycancel, showerror, showinfo
 
 
 class SerComFrame(Frame):
@@ -415,6 +415,97 @@ class ReadFrame(Frame):
         du.read(comm, start_addr=readStartAddr, length=readLen, echo=1)
 
 
+class TermWindow(Frame):
+    def __init__(self, parent, DEBUG=False):
+        # Frame.__init__(self, parent)
+        Frame.__init__(self, parent, padx=10, pady=10)
+        # Text.__init__(self, parent=None, width=40,
+        #               height=20, font=('Consolas', 11))
+        # Text.__init__(self, parent=None, width=40, height=10, font=('Consolas', 11),cursor='END', background='#202020', foreground='white')
+        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
+        self.DEBUG = DEBUG
+        self.STANDALONE = False
+        self.comm = None            # object created by boardcom
+        self.buildFrame()
+
+    def buildFrame(self):
+        self.clear_button = Button(
+            self, text="Clear Screen", command=self.clear)
+        self.clear_button.grid(row=0, column=0, padx=20)
+
+        self.get_text_button = Button(
+            self, text="Get Text", command=self.get_text)
+        self.get_text_button.grid(row=0, column=1, padx=20)
+
+        # self.button = Button(self, text="other")
+        # self.button.grid(row=0, column=2, padx=20)
+
+        self.text = Text(self, width=120, height=20, font=('Consolas', 11))
+        self.text.grid(row=1, column=0, pady=10, columnspan=4, sticky=EW)
+
+        self.text.bind('<Return>', self.onReturnKey)
+        self.text.bind('<Up>', self.onUpArrowKey)
+        self.text.bind('<Down>', self.onDownArrowKey)
+        self.text.bind('<Left>', self.onLeftArrowKey)
+        self.text.bind('<Right>', self.onRightArrowKey)
+        self.text.bind('<Home>', self.onHomeKey)
+
+        # self.label = Label(root, text='', anchor=W, justify=LEFT)
+        # self.label.grid(row=2, column=0, pady=10, columnspan=3, sticky=EW)
+
+        self.text.insert("1.5", ">>> ")
+
+    def clear(self):
+        print('clear')
+        self.text.delete(1.0, END)
+        self.text.insert(END, '>>> ')
+
+    def get_text(self):
+        # my_label.config(text=my_text.get(1.5, 3.5))
+        # txt = se'positiononpos(text=self.text.get(1.0, END))
+        # self.text.focus()
+        pos = self.text.index(INSERT)
+        print(f'position {pos}')
+        [x,y] = str(pos).split('.')
+        print(f'x:{x}\ny:{y}')
+        Xstart = float(str(x)+'.0')
+        Xend = float(str(x)+'.'+str(y))
+        print(f'Xstart: {Xstart}, Xend: {Xend}')
+        
+        txt = self.text.get(Xstart,Xend)
+        # txt = self.label.config(text=self.text.get(1.0, END))
+        print(f'get_text: {txt}')
+
+    def onReturnKey(self, event):
+        cmdstr = self.text.get("current linestart", "current lineend").strip()
+        # cmdstr = self.text.get(1.3, 2.0).strip()
+        print(cmdstr)
+        # comm.send(cmdstr)
+        # resp = comm.response()
+        # print(resp)
+        # self.text.mark_set(INSERT, '3.8')
+        # self.text.insert(INSERT, resp)
+
+
+    def onUpArrowKey(self, event):
+        print('Move the cursor one line up')
+        self.text.focus()
+
+    def onDownArrowKey(self, event):
+        print('Move the cursor one line down')
+
+    def onLeftArrowKey(self, event):
+        print('Move the cursor one line left')
+        self.get_text()
+
+    def onRightArrowKey(self, event):
+        print('Move the cursor one line right')
+
+    def onHomeKey(self, event):
+        self.text.tag_add(SEL, '1.0', END+'-1c')   # select entire text
+        self.text.mark_set(INSERT, '1.0')          # move insert point to top
+        self.text.see(INSERT)                      # scroll to top
+
 if __name__ == "__main__":
 
     def updtStsBar(statusMsg):
@@ -482,12 +573,28 @@ if __name__ == "__main__":
         json.dump(cfg, f, indent=3)
         f.close()
 
+    def showAbout():
+        aboutMsg = '''
+                   ***************************
+                   *** Dubrovnik Workbench ***
+                   ***************************
+
+                   Ver 0.5
+
+                   Authors:
+                   Csaba Moldvai
+                   Eyal Barzilay'''
+        showinfo('About', aboutMsg)
+
     root = Tk()
     root.title('Dubrovnik Communication App')
 
     comm = boardcom.BoardComm()   # create an instance of class Comm
     portList = comm.findPorts()
 
+# *******************************************
+# ****** Serial Communications Panel ********
+# *******************************************
     serCom = SerComFrame(root, DEBUG=False)  # invoking the class
     # serCom.pack(side=TOP, fill=BOTH)
     serCom.grid_propagate(0)
@@ -496,6 +603,9 @@ if __name__ == "__main__":
     serCom.combo.set(portList[0])
     serCom.comm = comm
 
+# ******************************
+# ****** Erase Panel   *********
+# ******************************
     erase = EraseFrame(root, DEBUG=False)  # invoking the class
     # erase.pack(side=LEFT, fill=BOTH)
     erase.grid_propagate(0)
@@ -503,6 +613,9 @@ if __name__ == "__main__":
     erase.grid(row=1, column=0, padx=10, pady=10, sticky=NW)
     erase.comm = comm     # initializeing self.com in Erase class
 
+# ******************************
+# ****** Program Panel *********
+# ******************************
     # TODO rename program to progFrm
     program = ProgramFrame(root, DEBUG=False)  # invoking the class
     # program.pack(side=LEFT, fill=BOTH)
@@ -511,6 +624,9 @@ if __name__ == "__main__":
     program.grid(row=1, column=1, padx=10, pady=10, sticky=NW)
     program.comm = comm   # initializeing self.com in Program class
 
+# ***************************
+# ****** Read Panel *********
+# ***************************
     read = ReadFrame(root, DEBUG=False)  # invoking the class
     # read.pack(side=LEFT, fill=BOTH)
     read.grid_propagate(0)
@@ -518,24 +634,25 @@ if __name__ == "__main__":
     read.grid(row=1, column=2, padx=10, pady=10, sticky=NW)
     read.comm = comm     # initializeing self.com in Erase class
 
+
+# ***********************************
+# ******** Terminal Window **********
+# ***********************************
+    termWin = TermWindow(root, DEBUG=False)
+    termWin.config(width=400, height=300)
+    termWin.grid_propagate(0)
+    termWin.grid(row=2, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
+
+
+# ***************************
+# ****** Status Bar *********
+# ***************************
     stsBarComm = Label(root, text='Not connected', font=(
         "Helvetica", 9), anchor=W, justify=LEFT, pady=2)
     stsBarComm.config(bd=1, relief=SUNKEN)
     # stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
-    # stsBarComm.grid_propagate(0)
+    stsBarComm.grid_propagate(0)
     stsBarComm.grid(row=3, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
-
-    # test_btn1 = Button(root, text='Save Config',
-    #                    command=saveConfig)
-    # test_btn1.pack(side=BOTTOM, pady=10)
-
-    # test_btn2 = Button(root, text='Load Config',
-    #                    command=loadConfig)
-    # test_btn2.pack(side=BOTTOM, pady=10)
-
-    # test_btn3 = Button(root, text='Default Config',
-    #                    command=loadDefaultSettings)
-    # test_btn3.pack(side=BOTTOM, pady=10)
 
     # ############ MENU
     my_menu = Menu(root)
@@ -571,10 +688,7 @@ if __name__ == "__main__":
     my_menu.add_cascade(label="Help", menu=help_menu)
     help_menu.add_command(label="Help")
     help_menu.add_separator()
-    help_menu.add_command(label="About")
-    help_menu.add_command(label="by")
-    help_menu.add_command(label="Csaba Moldvai")
-    help_menu.add_command(label="Eyal Barzilay")
+    help_menu.add_command(label="About", command=showAbout)
 
     loadConfig()
 

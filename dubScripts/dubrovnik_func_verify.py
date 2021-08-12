@@ -37,7 +37,7 @@ voltage = config['Voltage']
 min_dly = int(config['min meas time (us)'])
 
 if partNumber == 'UNKNOWN':
-    voltage = '3.3'  # don't go higher, it may damage the MCU VCC_SD input
+    voltage = '1.8'  # don't go higher, it may damage the MCU VCC_SD input
 
 # the previous run may have left it at low voltage
 comm.send(f'psset 0 {voltage}')
