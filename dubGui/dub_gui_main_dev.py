@@ -1,13 +1,18 @@
+# from dubGui.serialTerminalShell import Terminal
 import os
 import sys
-# import pickle
 import json
+import time
 from tkinter import *
 from tkinter import ttk
+from tkinter import scrolledtext
 from dubLibs import boardcom
 from dubLibs import dubrovnik as du
 from tkinter.filedialog import askopenfilename
-from tkinter.messagebox import askretrycancel, showerror, showinfo
+from tkinter.messagebox import showerror, showinfo
+
+PROMPT = '>>> '
+CLEAR_CMD = 'clear'
 
 
 class SerComFrame(Frame):
@@ -225,14 +230,16 @@ class ProgramFrame(Frame):
             print('Programming...')
             t_prog = du.pattern_program(
                 self.comm, startAddr, dataLen, pattn, incr)
+            term.displayText(du.textToDisplay)
         else:   # if programming a content of a file
             dsize = len(self.progData)
             print('Downloading data...')
             du.write_buf_write(comm, self.progData, dsize)
             print('Programming...')
             t_prog = du.data_program(comm, self.progData, startAddr)
-        prog_time = du.time_unit_conversion(t_prog)
-        print(f'Actual programming time: {prog_time}')
+            # term.displayText(du.textToDisplay)
+        prog_time = du.time_conv_from_usec(t_prog)
+        print(f'DONE. Effective programming time: {prog_time}')
 
     def openFile(self):
         filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
@@ -315,27 +322,24 @@ class EraseFrame(Frame):
 
     def blockErase(self):
         serCom.checkConnection()  # check if board is connected
-        blkSzStr = self.blockSize.get()
+        blkSzStr = self.blockSize.get().lower()
+        start_addr = int(self.startAddr.get(), 16)
+        num_blocks = int(self.numBlocks.get(), 16)
 
-        if blkSzStr == 'Chip':
-            print('Erasing entire chip')
-            erase_time = du.block_erase(self.comm, block_size='chip', echo=1)
-            # self.comm.send('6; 60; wait 0')
-            # print(self.comm.response())
-            print('Chip erase done.')
-        else:
-            # don't change it to hex int(blkSzStr, 16). Will fail!
+        if blkSzStr != 'chip':  # if it is a '4','32' or '64
             block_size = int(blkSzStr)
-            start_addr = int(self.startAddr.get(), 16)
-            num_blocks = int(self.numBlocks.get(), 16)
             blockSizeKB = block_size * 1024
             startAddr = (start_addr // blockSizeKB) * blockSizeKB
             print(
                 f'Erasing {num_blocks} {block_size}kB block(s) from address {startAddr:x}')
             t_erase = du.block_erase(
                 self.comm, block_size, start_addr, num_blocks)
-            erase_time = du.time_unit_conversion(t_erase)
-        print(f'Elapsed time: {erase_time}')
+        else:
+            print('Erasing chip')
+            t_erase = du.block_erase(self.comm, blkSzStr)
+
+        erase_time = du.time_conv_from_usec(t_erase)
+        print(f'DONE. Elapsed time: {erase_time}')
 
     def erase_test(self):
         print(f'Selected Erase Block Size : {self.blockSize.get()}')
@@ -415,96 +419,103 @@ class ReadFrame(Frame):
         du.read(comm, start_addr=readStartAddr, length=readLen, echo=1)
 
 
-class TermWindow(Frame):
-    def __init__(self, parent, DEBUG=False):
-        # Frame.__init__(self, parent)
-        Frame.__init__(self, parent, padx=10, pady=10)
-        # Text.__init__(self, parent=None, width=40,
-        #               height=20, font=('Consolas', 11))
-        # Text.__init__(self, parent=None, width=40, height=10, font=('Consolas', 11),cursor='END', background='#202020', foreground='white')
-        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
-        self.DEBUG = DEBUG
-        self.STANDALONE = False
-        self.comm = None            # object created by boardcom
-        self.buildFrame()
+class Terminal(Frame):
+    def __init__(self, parent=None):
+        LabelFrame.__init__(self, parent, text='Terminal',
+                            relief=GROOVE, padx=10, pady=10)
+        self.comm = None
+        self.history = []
+        self.historyIndex = 0
+        self.textToDisplay = None  #CM TODO: check if needed. displayText implemented differently
+        self.txt = scrolledtext.ScrolledText(
+            self, wrap=CHAR, width=60, height=20, font=("Consolas", 11))
+        self.txt.pack(expand=YES, fill=BOTH)
+        # self.txt.grid(row=0, column=0, pady=10, padx=10)
+        self.clear()
+        self.txt.focus()      # placing cursor in text area
 
-    def buildFrame(self):
-        self.clear_button = Button(
-            self, text="Clear Screen", command=self.clear)
-        self.clear_button.grid(row=0, column=0, padx=20)
+        # Key bindings
+        self.txt.bind('<Return>', self.onReturnKey)
+        self.txt.bind('<BackSpace>', self.onBackSpace)
+        self.txt.bind('<Delete>', self.onDelete)
+        self.txt.bind('<Up>', self.onUpArrowKey)
+        self.txt.bind('<Down>', self.onDownArrowKey)
+        self.txt.bind('<Left>', self.onLeftArrowKey)
 
-        self.get_text_button = Button(
-            self, text="Get Text", command=self.get_text)
-        self.get_text_button.grid(row=0, column=1, padx=20)
-
-        # self.button = Button(self, text="other")
-        # self.button.grid(row=0, column=2, padx=20)
-
-        self.text = Text(self, width=120, height=20, font=('Consolas', 11))
-        self.text.grid(row=1, column=0, pady=10, columnspan=4, sticky=EW)
-
-        self.text.bind('<Return>', self.onReturnKey)
-        self.text.bind('<Up>', self.onUpArrowKey)
-        self.text.bind('<Down>', self.onDownArrowKey)
-        self.text.bind('<Left>', self.onLeftArrowKey)
-        self.text.bind('<Right>', self.onRightArrowKey)
-        self.text.bind('<Home>', self.onHomeKey)
-
-        # self.label = Label(root, text='', anchor=W, justify=LEFT)
-        # self.label.grid(row=2, column=0, pady=10, columnspan=3, sticky=EW)
-
-        self.text.insert("1.5", ">>> ")
-
-    def clear(self):
-        print('clear')
-        self.text.delete(1.0, END)
-        self.text.insert(END, '>>> ')
-
-    def get_text(self):
-        # my_label.config(text=my_text.get(1.5, 3.5))
-        # txt = se'positiononpos(text=self.text.get(1.0, END))
-        # self.text.focus()
-        pos = self.text.index(INSERT)
-        print(f'position {pos}')
-        [x,y] = str(pos).split('.')
-        print(f'x:{x}\ny:{y}')
-        Xstart = float(str(x)+'.0')
-        Xend = float(str(x)+'.'+str(y))
-        print(f'Xstart: {Xstart}, Xend: {Xend}')
-        
-        txt = self.text.get(Xstart,Xend)
-        # txt = self.label.config(text=self.text.get(1.0, END))
-        print(f'get_text: {txt}')
+    def displayText(self, text):
+        self.txt.insert(END, '\n' + text)
+        self.txt.insert(END, '\n' + PROMPT)
+        self.txt.mark_set(INSERT, END)
+        self.txt.see(INSERT)
 
     def onReturnKey(self, event):
-        cmdstr = self.text.get("current linestart", "current lineend").strip()
-        # cmdstr = self.text.get(1.3, 2.0).strip()
+        cmdstr = self.txt.get("end-1l linestart", "end-1l lineend")[
+            len(PROMPT):].strip()
         print(cmdstr)
-        # comm.send(cmdstr)
-        # resp = comm.response()
-        # print(resp)
-        # self.text.mark_set(INSERT, '3.8')
-        # self.text.insert(INSERT, resp)
+        if len(cmdstr) > 0:
+            self.history.append(cmdstr)
 
+        if cmdstr == CLEAR_CMD:
+            self.clear()
+            return 'break'
+        elif len(cmdstr) > 0:
+            try:
+                comm.send(cmdstr)
+                resp = comm.response(removeCmd=True, removePrompt=True).strip()
+            except Exception as e:
+                resp = f'error from boardcom: {e}'
+            if resp != '':
+                self.txt.insert(END, '\n' + resp)
+
+        self.txt.insert(END, '\n' + PROMPT)
+        self.txt.mark_set(INSERT, END)
+        self.txt.see(INSERT)
+        self.historyIndex = len(self.history)
+        # Returning 'break' prevents the native behavior, i.e. line break.
+        return 'break'
+
+    def onBackSpace(self, event):
+        return self.allowDelete(5)
+
+    def onDelete(self, event):
+        return self.allowDelete(4)
+
+    def allowDelete(self, charIndex):
+        cur = self.txt.index(INSERT)
+        charPos = int(cur.split('.')[1])
+        if charPos < charIndex:
+            return 'break'
 
     def onUpArrowKey(self, event):
-        print('Move the cursor one line up')
-        self.text.focus()
+        if self.historyIndex > 0:
+            self.historyIndex -= 1
+        return self.replaceLineWithHistory()
 
     def onDownArrowKey(self, event):
-        print('Move the cursor one line down')
+        if self.historyIndex < len(self.history):
+            self.historyIndex += 1
+        return self.replaceLineWithHistory()
 
     def onLeftArrowKey(self, event):
-        print('Move the cursor one line left')
-        self.get_text()
+        return self.allowDelete(5)
 
-    def onRightArrowKey(self, event):
-        print('Move the cursor one line right')
+    def replaceLineWithHistory(self):
+        self.txt.delete('end-1l linestart+' +
+                        str(len(PROMPT)) + 'c', 'end-1l lineend')
 
-    def onHomeKey(self, event):
-        self.text.tag_add(SEL, '1.0', END+'-1c')   # select entire text
-        self.text.mark_set(INSERT, '1.0')          # move insert point to top
-        self.text.see(INSERT)                      # scroll to top
+        newLine = ''
+        if self.historyIndex < len(self.history):
+            newLine = self.history[self.historyIndex]
+        self.txt.insert(END, newLine)
+        return 'break'
+
+    def clear(self):
+        self.txt.delete(1.0, END)
+        self.txt.insert(1.0, PROMPT)
+
+    def callCommand(self):
+        pass
+
 
 if __name__ == "__main__":
 
@@ -632,17 +643,29 @@ if __name__ == "__main__":
     read.grid_propagate(0)
     read.config(width=380, height=210, bd=2, relief=GROOVE)
     read.grid(row=1, column=2, padx=10, pady=10, sticky=NW)
-    read.comm = comm     # initializeing self.com in Erase class
-
+    read.comm = comm     # initializeing self.com in ReadFrame class
 
 # ***********************************
 # ******** Terminal Window **********
 # ***********************************
-    termWin = TermWindow(root, DEBUG=False)
-    termWin.config(width=400, height=300)
-    termWin.grid_propagate(0)
-    termWin.grid(row=2, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
+    term = Terminal(root)
+    # term.config(width=400, height=300)
+    # term.grid_propagate(0)
+    term.grid(row=2, column=0, padx=10, pady=10, columnspan=99, sticky=NSEW)
+    term.grid_columnconfigure(0, weight=1)
+    term.grid_rowconfigure(0, weight=1)
+    term.comm = comm     # initializeing self.com in Erase class
 
+# *******************************************
+# ******** Terminal Message Window **********
+# *******************************************
+    # msgFrm = MessageFrame(root)
+    # # msgFrm.config(width=400, height=300)
+    # # msgFrm.grid_propagate(0)
+    # msgFrm.grid(row=3, column=0, padx=10, pady=10, columnspan=99, sticky=NSEW)
+    # msgFrm.grid_columnconfigure(0, weight=1)
+    # msgFrm.grid_rowconfigure(0, weight=1)
+    # msgFrm.comm = comm     # initializeing self.com in Erase class
 
 # ***************************
 # ****** Status Bar *********
@@ -652,7 +675,8 @@ if __name__ == "__main__":
     stsBarComm.config(bd=1, relief=SUNKEN)
     # stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
     stsBarComm.grid_propagate(0)
-    stsBarComm.grid(row=3, column=0, padx=10, pady=10, columnspan=3, sticky=EW)
+    stsBarComm.grid(row=4, column=0, padx=10, pady=10,
+                    columnspan=3, sticky=EW)
 
     # ############ MENU
     my_menu = Menu(root)
@@ -702,5 +726,29 @@ if __name__ == "__main__":
             # if only 1 port, of lastUsedPort not on the list
             serCom.connectPort(portList[0])
     # if no autoConnect, just fall through
+
+    comport = portList[0]
+    print(f'comm: {comm}')
+    # print(comm.serialAvailable(comport))
+
+
+    # def timer():
+    #     # seconds = time.strftime("%S")
+    #     # print(seconds)
+    #     # term.displayText(seconds)
+
+    #     numBytes = comm.serialAvailable()
+    #     if numBytes > 0:
+    #         resp = comm.response()
+    #         term.displayText(resp)
+
+    #     # numBytes = comm.serialAvailable(comport)
+    #     # term.displayText(str(numBytes))  # print response into the teminal window
+    #     # print(f'numBytes: {numBytes}')
+    #     timer_lbl.after(1000, timer)  # regularly call function to implement a timer
+
+    # timer_lbl = Label(root, text='')
+    # # timer_lbl.pack() # make it invisible. Used as timer for checking serial port
+    # timer()  # must call the function once to start it
 
     mainloop()

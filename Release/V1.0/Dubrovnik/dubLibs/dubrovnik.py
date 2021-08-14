@@ -1,13 +1,10 @@
 from dubLibs import boardcom
-from dubGui import dub_gui_main as gui
 # import sys
 
 pageSize = 0x100
 wel = '06'
 led_dict = {'r1': '9', 'g1': '11', 'b1': '10',
             'r2': '14', 'g2': '13', 'b2': '12'}
-# used by other modules (e.g. dub_gui_main) to display text
-textToDisplay = ""
 
 
 def get_version(comm, echo=1):
@@ -261,7 +258,6 @@ def data_program(comm, data_array, start_addr=0):
     * first writing the page data into the test bench write buffer
     * then performing a test bench program operation
     """
-    global textToDisplay
     idx = 0
     addr = start_addr
     end_addr = start_addr + len(data_array)
@@ -273,7 +269,6 @@ def data_program(comm, data_array, start_addr=0):
         # cmdstr = write_buf_write(comm, data_array[idx:idx+progSize], progSize)
         write_buf_write(comm, data_array[idx:idx+progSize], progSize)
         cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
-        textToDisplay = cmdstr
         comm.send(cmdstr)
         addr = pageEnd
     return get_wait_time_us(comm)
@@ -302,8 +297,6 @@ def pattern_program(comm, start_addr=0, length=0, pattern='cafe0000',
     * programs 'length' bytes from the write buffer into the flash
       from start_addr.
     """
-    global textToDisplay  # used by GUI
-
     # create a pattern in the write buffer
     cmdstr = f'pattern {pattern} {increment}'
     comm.send(cmdstr)
@@ -351,7 +344,6 @@ def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
         if echo == 1:
             print(comm.response(removePrompt=True))
         print('Done.')
-        erase_time += get_wait_time_us(comm)
     else:
         blockSizeKB = block_size * 1024
         startAddr = (start_addr // blockSizeKB) * blockSizeKB
@@ -552,12 +544,12 @@ if __name__ == '__main__':
 
     DBG = 1
     if DBG:
-        erase_time = block_erase(comm, block_size='chip', start_addr=0,
+        erase_time = block_erase(comm, block_size=4, start_addr=0,
                                  num_blocks=1, echo=0)
         t_erase = time_conv_from_usec(erase_time)
         print(f'Erase time: {t_erase}')
 
-    DBG = 0
+    DBG = 1
     if DBG:
         t_wait = pattern_program(comm, start_addr=0, length=400, pattern='caba0000',
                                  increment=2, echo=1)

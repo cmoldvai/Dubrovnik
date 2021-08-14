@@ -230,16 +230,14 @@ class ProgramFrame(Frame):
             print('Programming...')
             t_prog = du.pattern_program(
                 self.comm, startAddr, dataLen, pattn, incr)
-            term.displayText(du.textToDisplay)
         else:   # if programming a content of a file
             dsize = len(self.progData)
             print('Downloading data...')
             du.write_buf_write(comm, self.progData, dsize)
             print('Programming...')
             t_prog = du.data_program(comm, self.progData, startAddr)
-            # term.displayText(du.textToDisplay)
-        prog_time = du.time_conv_from_usec(t_prog)
-        print(f'DONE. Effective programming time: {prog_time}')
+        prog_time = du.time_unit_conversion(t_prog)
+        print(f'Actual programming time: {prog_time}')
 
     def openFile(self):
         filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
@@ -322,24 +320,27 @@ class EraseFrame(Frame):
 
     def blockErase(self):
         serCom.checkConnection()  # check if board is connected
-        blkSzStr = self.blockSize.get().lower()
-        start_addr = int(self.startAddr.get(), 16)
-        num_blocks = int(self.numBlocks.get(), 16)
+        blkSzStr = self.blockSize.get()
 
-        if blkSzStr != 'chip':  # if it is a '4','32' or '64
+        if blkSzStr == 'Chip':
+            print('Erasing entire chip')
+            erase_time = du.block_erase(self.comm, block_size='chip', echo=1)
+            # self.comm.send('6; 60; wait 0')
+            # print(self.comm.response())
+            print('Chip erase done.')
+        else:
+            # don't change it to hex int(blkSzStr, 16). Will fail!
             block_size = int(blkSzStr)
+            start_addr = int(self.startAddr.get(), 16)
+            num_blocks = int(self.numBlocks.get(), 16)
             blockSizeKB = block_size * 1024
             startAddr = (start_addr // blockSizeKB) * blockSizeKB
             print(
                 f'Erasing {num_blocks} {block_size}kB block(s) from address {startAddr:x}')
             t_erase = du.block_erase(
                 self.comm, block_size, start_addr, num_blocks)
-        else:
-            print('Erasing chip')
-            t_erase = du.block_erase(self.comm, blkSzStr)
-
-        erase_time = du.time_conv_from_usec(t_erase)
-        print(f'DONE. Elapsed time: {erase_time}')
+            erase_time = du.time_unit_conversion(t_erase)
+        print(f'Elapsed time: {erase_time}')
 
     def erase_test(self):
         print(f'Selected Erase Block Size : {self.blockSize.get()}')
@@ -426,8 +427,6 @@ class Terminal(Frame):
         self.comm = None
         self.history = []
         self.historyIndex = 0
-        # CM TODO: check if needed. displayText implemented differently
-        self.textToDisplay = None
         self.txt = scrolledtext.ScrolledText(
             self, wrap=CHAR, width=60, height=20, font=("Consolas", 11))
         self.txt.pack(expand=YES, fill=BOTH)
@@ -516,7 +515,6 @@ class Terminal(Frame):
 
     def callCommand(self):
         pass
-
 
 if __name__ == "__main__":
 
@@ -646,6 +644,7 @@ if __name__ == "__main__":
     read.grid(row=1, column=2, padx=10, pady=10, sticky=NW)
     read.comm = comm     # initializeing self.com in ReadFrame class
 
+
 # ***********************************
 # ******** Terminal Window **********
 # ***********************************
@@ -657,17 +656,6 @@ if __name__ == "__main__":
     term.grid_rowconfigure(0, weight=1)
     term.comm = comm     # initializeing self.com in Erase class
 
-# *******************************************
-# ******** Terminal Message Window **********
-# *******************************************
-    # msgFrm = MessageFrame(root)
-    # # msgFrm.config(width=400, height=300)
-    # # msgFrm.grid_propagate(0)
-    # msgFrm.grid(row=3, column=0, padx=10, pady=10, columnspan=99, sticky=NSEW)
-    # msgFrm.grid_columnconfigure(0, weight=1)
-    # msgFrm.grid_rowconfigure(0, weight=1)
-    # msgFrm.comm = comm     # initializeing self.com in Erase class
-
 # ***************************
 # ****** Status Bar *********
 # ***************************
@@ -676,7 +664,7 @@ if __name__ == "__main__":
     stsBarComm.config(bd=1, relief=SUNKEN)
     # stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
     stsBarComm.grid_propagate(0)
-    stsBarComm.grid(row=4, column=0, padx=10, pady=10,
+    stsBarComm.grid(row=3, column=0, padx=10, pady=10,
                     columnspan=3, sticky=EW)
 
     # ############ MENU
@@ -727,28 +715,28 @@ if __name__ == "__main__":
             # if only 1 port, of lastUsedPort not on the list
             serCom.connectPort(portList[0])
     # if no autoConnect, just fall through
-
+    
     comport = portList[0]
     print(f'comm: {comm}')
     # print(comm.serialAvailable(comport))
+    
+    def timer():
+        # seconds = time.strftime("%S")
+        # print(seconds)
+        # term.displayText(seconds)
 
-    # def timer():
-    #     # seconds = time.strftime("%S")
-    #     # print(seconds)
-    #     # term.displayText(seconds)
+        numBytes = comm.serialAvailable()
+        if numBytes > 0:
+            resp = comm.response()
+            term.displayText(resp)
 
-    #     numBytes = comm.serialAvailable()
-    #     if numBytes > 0:
-    #         resp = comm.response()
-    #         term.displayText(resp)
+        # numBytes = comm.serialAvailable(comport)
+        # term.displayText(str(numBytes))  # print response into the teminal window
+        # print(f'numBytes: {numBytes}')
+        timer_lbl.after(1000, timer)  # regularly call function to implement a timer
 
-    #     # numBytes = comm.serialAvailable(comport)
-    #     # term.displayText(str(numBytes))  # print response into the teminal window
-    #     # print(f'numBytes: {numBytes}')
-    #     timer_lbl.after(1000, timer)  # regularly call function to implement a timer
-
-    # timer_lbl = Label(root, text='')
-    # # timer_lbl.pack() # make it invisible. Used as timer for checking serial port
-    # timer()  # must call the function once to start it
+    timer_lbl = Label(root, text='')
+    # timer_lbl.pack() # make it invisible. Used as timer for checking serial port
+    timer()  # must call the function once to start it
 
     mainloop()

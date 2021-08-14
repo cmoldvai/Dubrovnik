@@ -1,0 +1,27 @@
+NOTES:
+
+1.  self.prompt = prompt must be of type bytes
+    self.prompt = prompt.encode('utf-8')
+
+2. There is a challenge, because we don't know how long it will take for TestBench to finalize filling
+   in the input buffer.
+   I had to play with some delay times: time.sleep(0.02)
+   May have to change (increase) this time in the future
+   I tested it by reading very long memory values and with this value it worked.
+
+3. Before each send MUST reset the input buffer. this is in case if we are sending two send commands back to back
+   and then perform a response() operation.
+   The old version always read back everything and emptied the input buffer.
+   The new version doesn't do that. So if I issue back to back send commands and if I don't empty the
+   input buffer, the first response() command will still have responses from the very first send(), with
+   a string that terminates with a '\r'. This is causing the respond() to stop there and it will never reach
+   the data that it needs. 
+   
+   Two possible solutions:
+   a) after each send, process the response(), which will empty the input buffer
+   b) must reset the input buffer before each send, to clear up the garbage of the previous send
+
+   I am thinking to change that: possibly to a)
+
+   
+
