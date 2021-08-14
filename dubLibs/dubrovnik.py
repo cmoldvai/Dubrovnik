@@ -42,24 +42,6 @@ def global_echo(comm, onoff):
     return None
 
 
-# def cmd(comm, cmdstr, echo=0, removeCmd=False, removePrompt=True, returnAsList=False):
-#     """
-#     Sends a Command String (cmdstr) to Dubrovnik on comm and returns the response.\n
-#     Arguments:
-#         echo         : if 1, will print the response on the terminal
-#         removeCmd    : True removes cmdstr from the beginning of the response
-#         removePrompt : True removes the PROMPT from the end of the response
-#         returnAsList : True returns response as list of individual lines, otherwise a string\n
-#     Return value:
-#         The response in a format specified by input arguments
-#     """
-#     comm.send(cmdstr)
-#     resp = comm.response(removeCmd, removePrompt, returnAsList)
-#     if echo == 1:
-#         print(resp)
-#     return resp
-
-
 def update_byte(old_byte, mask, data):
     new_byte = (old_byte & ~mask) | (data & mask)
     return new_byte
@@ -156,10 +138,13 @@ def get_part_number(comm):
 # read_888
 
 def read(comm, start_addr=0, length=256, echo=1, dispmode='b', opcode='0b'):
+    global textToDisplay
+    textToDisplay = ""
     set_dispmode(comm, dispmode)
     cmdstr = f'{opcode} {start_addr:x} {length:x}'
     comm.send(cmdstr)
     resp = comm.response(removeCmd=True, removePrompt=True, returnAsList=False)
+    textToDisplay = resp
     if echo:
         print(resp)
     return resp
@@ -262,6 +247,7 @@ def data_program(comm, data_array, start_addr=0):
     * then performing a test bench program operation
     """
     global textToDisplay
+    textToDisplay = ""
     idx = 0
     addr = start_addr
     end_addr = start_addr + len(data_array)
@@ -270,44 +256,30 @@ def data_program(comm, data_array, start_addr=0):
         if pageEnd > end_addr:
             pageEnd = end_addr
         progSize = pageEnd - addr
-        # cmdstr = write_buf_write(comm, data_array[idx:idx+progSize], progSize)
         write_buf_write(comm, data_array[idx:idx+progSize], progSize)
-        cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
-        textToDisplay = cmdstr
+        cmdstr = f'06;02 {addr:x} {progSize:x};wait 0\n'
+        textToDisplay += cmdstr
         comm.send(cmdstr)
         addr = pageEnd
     return get_wait_time_us(comm)
 
 
-def page_program(comm, start_addr=0, length=0):
-    addr = start_addr
-    end_addr = start_addr + length
-    while addr < end_addr:
-        pageEnd = addr - (addr % pageSize) + pageSize
-        if pageEnd > end_addr:
-            pageEnd = end_addr
-        progSize = pageEnd - addr
-        cmdstr = f'06;02 {addr:x} {progSize:x};wait 0'
-        comm.send(cmdstr)
-        addr = pageEnd
-    return get_wait_time_us(comm)
-
-
-def pattern_program(comm, start_addr=0, length=0, pattern='cafe0000',
-                    increment='0', echo=0):
-    """
-    * creates a pattern in the write buffer
-      pattern   : 4 byte hex number
-      increment : a positive or negative increment added to the pattern
-    * programs 'length' bytes from the write buffer into the flash
-      from start_addr.
+def page_program(comm, start_addr=0, length=0, pattern='cafe0000',
+                 increment='0', echo=0):
+    """Programs content of the write buffer into the memory\n
+    Parameters:\n
+    * start_addr (int): first memory location to program
+    * length (int): number of bytes to program
+    * pattern (8 digit hex string): 4-byte hex number to be programmed
+    * increment (1-8 digit hex string) : +ve or -ve increment added to the pattern
+    * echo (int): 0 or 1. Whether to print the results in the console or not
     """
     global textToDisplay  # used by GUI
+    textToDisplay = ""
 
     # create a pattern in the write buffer
     cmdstr = f'pattern {pattern} {increment}'
     comm.send(cmdstr)
-
     addr = start_addr
     end_addr = start_addr + length
     while addr < end_addr:
@@ -315,8 +287,8 @@ def pattern_program(comm, start_addr=0, length=0, pattern='cafe0000',
         if pageEnd > end_addr:
             pageEnd = end_addr
         progSize = pageEnd - addr
-        cmdstr = f'06; 02 {addr:x} {progSize:x}; wait 0'
-
+        cmdstr = f'06; 02 {addr:x} {progSize:x}; wait 0\n'
+        textToDisplay += cmdstr  # append cmdstr to display in GUI console
         if echo == 1:
             print(cmdstr)
         comm.send(cmdstr)
@@ -339,14 +311,15 @@ def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
 
     Return value    : erase time in us/ms/sec (time it took to erase the specified chunk of memory block)
     '''
+    global textToDisplay
     erase_time = 0
     if block_size == 'chip':
         print('Chip Erase in progress...')
         opcode = 'c7'  # OpCode for chip erase: 60h or C7h
         if trig:
-            cmdstr = f'{wel}; trig 1;{opcode}; wait 0; trig 0'
+            cmdstr = f'{wel}; trig 1;{opcode}; wait 0; trig 0\n'
         else:
-            cmdstr = f'{wel}; {opcode}; wait 0'
+            cmdstr = f'{wel}; {opcode}; wait 0\n'
         comm.send(cmdstr)
         if echo == 1:
             print(comm.response(removePrompt=True))
@@ -366,10 +339,11 @@ def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
         addr = startAddr
         for _ in range(0, num_blocks):
             if trig:
-                cmdstr = f'{wel}; trig 1;{opcode} {addr:x}; wait 0; trig 0'
+                cmdstr = f'{wel}; trig 1;{opcode} {addr:x}; wait 0; trig 0\n'
             else:
-                cmdstr = f'{wel}; {opcode} {addr:x}; wait 0'
+                cmdstr = f'{wel}; {opcode} {addr:x}; wait 0\n'
             comm.send(cmdstr)
+            textToDisplay += cmdstr
             if echo == 1:
                 print(comm.response(removePrompt=True))
             addr += blockSizeKB
@@ -377,6 +351,7 @@ def block_erase(comm, block_size=4, start_addr=0, num_blocks=1,
     # NOTE: chip boardcom may time out if erase time is too long (600sec or more)
     if echo == 1:
         print(f'Erase time = {erase_time} us')
+    # textToDisplay = textToDisplay[:-1]  # remove the last newline
     return erase_time
 
 
@@ -497,21 +472,24 @@ def wr_buffer(comm, spi_mode):
 
 
 def paint_flash_with_pattern(comm, params):
-    '''Paint flash with pattern
-    It will paint the flash with a pattern from start_addr with lenght bytes
-    until the list is exhausted.
-    Parameters are provided in a list of lists:
-    [[start_address0, length0, pattern0]
-     [start_address1, length1, pattern1]]
-    Returns the total programming time
-    '''
+    """### Paint flash with pattern\n
+    Parameters:\n
+    comm: comm port to communicate with the Dubrovnik board
+    params: a list of lists containing the [start address, length, pattern and increment]
+    for each memory block to be programmed. It keeps programming until the list is exhausted\n
+    [[start_address0, length0, pattern0, increment0]
+     [start_address1, length1, pattern1, increment1]]
+      .....
+     [start_addressN, lengthN, patternN, incrementN]]
+    Returns: the total programming time
+    """
     prog_time = 0
     for param in params:
         start_addr = param[0]
         length = param[1]
         pattern = param[2]
         # print(start_addr, length, pattern)
-        prog_time += pattern_program(comm, start_addr, length, pattern, echo=0)
+        prog_time += page_program(comm, start_addr, length, pattern, echo=0)
     return prog_time
 
 
@@ -559,7 +537,7 @@ if __name__ == '__main__':
 
     DBG = 0
     if DBG:
-        t_wait = pattern_program(comm, start_addr=0, length=400, pattern='caba0000',
+        t_wait = page_program(comm, start_addr=0, length=400, pattern='caba0000',
                                  increment=2, echo=1)
         t_prog = time_conv_from_usec(t_wait)
         print(f'Pattern program time: {t_prog}')

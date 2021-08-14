@@ -228,16 +228,17 @@ class ProgramFrame(Frame):
             print(
                 f'startAddr: {startAddr:X}, dataLen: {dataLen:x}, pattn: {pattn}, incr: {incr}')
             print('Programming...')
-            t_prog = du.pattern_program(
+            t_prog = du.page_program(
                 self.comm, startAddr, dataLen, pattn, incr)
-            term.displayText(du.textToDisplay)
+            tprint(du.textToDisplay[:-1])
+            # term.displayText(du.textToDisplay)
         else:   # if programming a content of a file
             dsize = len(self.progData)
             print('Downloading data...')
             du.write_buf_write(comm, self.progData, dsize)
             print('Programming...')
             t_prog = du.data_program(comm, self.progData, startAddr)
-            # term.displayText(du.textToDisplay)
+            tprint(du.textToDisplay[:-1])
         prog_time = du.time_conv_from_usec(t_prog)
         print(f'DONE. Effective programming time: {prog_time}')
 
@@ -338,6 +339,7 @@ class EraseFrame(Frame):
             print('Erasing chip')
             t_erase = du.block_erase(self.comm, blkSzStr)
 
+        tprint(du.textToDisplay[:-1])
         erase_time = du.time_conv_from_usec(t_erase)
         print(f'DONE. Elapsed time: {erase_time}')
 
@@ -417,6 +419,7 @@ class ReadFrame(Frame):
         print(f'Start Address : {readStartAddr}')
         print(f'Read Lenght   : {readLen}')
         du.read(comm, start_addr=readStartAddr, length=readLen, echo=1)
+        tprint(du.textToDisplay[:-1])
 
 
 class Terminal(Frame):
@@ -519,6 +522,26 @@ class Terminal(Frame):
 
 
 if __name__ == "__main__":
+
+    def tprint(text, printOn='guiConsole'):
+        """Targeted Print\n
+        Prints on the targeted console\n
+        Input parameters:\n
+        text: the text to be printed
+        printOn: the target where to print the messages:
+            'sysConsole' prints on system console
+            'guiConsole' prints in the GUI text window
+            'both' prints in both places (it slows down the system)
+        """
+        if printOn == 'sysConsole':
+            print(text)
+        elif printOn == 'guiConsole':
+            term.displayText(text)
+            du.textToDisplay = ""
+        else:
+            print(text)
+            term.displayText(text)
+            du.textToDisplay = ""
 
     def updtStsBar(statusMsg):
         print(statusMsg)
