@@ -9,7 +9,7 @@ from tkinter import scrolledtext
 from dubLibs import boardcom
 from dubLibs import dubrovnik  # instead of "from dubLibs import Dubrovnik as du"
 from tkinter.filedialog import askopenfilename
-from tkinter.messagebox import askretrycancel, showerror, showwarning, showinfo
+from tkinter.messagebox import showerror, showinfo
 
 PROMPT = '>>> '
 CLEAR_CMD = 'clear'
@@ -31,14 +31,13 @@ class SerComFrame(Frame):
         self.serParams = ''
 
         # Check if %AppData%\Dubrovnik folder exists. If not create one
-        appData = os.getenv('APPDATA')  # get location of %AppData% in Windows
+        appData = os.getenv('APPDATA')  # get the location of %AppData% in Windows
         if appData[-1] == '\\':
             appData = appData[:-1]  # get rid of the trailing backslash, if any
-        # append 'Dubrovnik' folder
-        self.dubrovnikConfigPath = f'{appData}\\Dubrovnik'
+        self.dubrovnikConfigPath = f'{appData}\\Dubrovnik'  # append 'Dubrovnik' folder
         if not os.path.isdir(self.dubrovnikConfigPath):  # if folder doesn't exist
-            # print(self.dubrovnikConfigPath)
-            os.mkdir(self.dubrovnikConfigPath)  # ...make one
+            print(self.dubrovnikConfigPath)
+            os.mkdir(self.dubrovnikConfigPath)  # make one
 
         self.buildFrame()
 
@@ -74,7 +73,7 @@ class SerComFrame(Frame):
         self.combo['values'] = self.portList
         self.combo.set(portList[0])
 
-    def connectPort(self, defaultPort=None, checkIsFlashPresent=True):
+    def connectPort(self, defaultPort=None):
         if self.portStatus == 'disconnected':
             if defaultPort:
                 self.selPort = defaultPort         # updates class variable as well
@@ -87,10 +86,7 @@ class SerComFrame(Frame):
             self.btn2.config(text='Disconnect')  # change button label
             self.portStatus = 'connected'  # update connection status
             self.serParams = f'Connected: {self.comPort} ({self.comBaudrate},{self.comBytesize},{self.comParity},{self.comStopbits},{self.comXonXoff})'
-            if checkIsFlashPresent:  # allow this part to run only when enabled by func argument
-                if comm.isFlashPresent():
-                    pn = du.get_part_number(comm)
-                    serCom.serParams += '    Device: ' + pn
+            # self.serParams = self.serParams + '    Device: ' + du.get_part_number(comm)
             stsBarComm.config(text=self.serParams)
 
         elif self.portStatus == 'connected':
@@ -105,13 +101,12 @@ class SerComFrame(Frame):
 
     def disconnectPort(self, selPort):
         self.comm.disconnect(selPort)
-        # print(f"Port: {selPort} disconnected")
+        print("Port: %s disconnected" % selPort)
         stsBarComm.config(text='No COM port found!')
 
     def checkConnection(self):
         if self.portStatus == 'disconnected':
-            showerror('Dubrovnik Dashboard Error',
-                      'Unable to open COM port!\nConnect to the board')
+            showerror('No Connection!', 'Connect to the board')
 
     def setSerialParams(self):
         """ Gets serial communication port parameters """
@@ -150,7 +145,6 @@ class SerComFrame(Frame):
                'readSpiMode': read.spiMode.get(),
                'readStartAddr': read.startAddr.get(),
                'readLength': read.readLength.get()
-            #    'readDispMode': read.dispmode_cb.get()
                }
         with open(f'{self.dubrovnikConfigPath}\dubrovnik.cfg', 'w') as fh:
             # print(cfg)  # TODO remove print when stable
@@ -175,7 +169,6 @@ class SerComFrame(Frame):
             read.spiMode.set(cfg['readSpiMode'])
             read.startAddr.set(cfg['readStartAddr'])
             read.readLength.set(cfg['readLength'])
-            # read.readDispMode.set(cfg['readDispMode'])
             fname.close()
         except FileNotFoundError:
             self.loadDefaultSettings()
@@ -480,8 +473,7 @@ class ReadFrame(Frame):
             btn2_read.grid(row=5, column=1, padx=2, pady=2)
 
     def dispmode_cb_updated(self, event):
-        # get selected item in Combo (a dict key)
-        dispModeSelKey = self.dispmode_cb.get()
+        dispModeSelKey = self.dispmode_cb.get()  # get the selected item in Combo
         # assign the associated value to dispmode
         mode = self.dispmodeOptions[dispModeSelKey]
         du.dispmode = mode  # update dispmode in class Dubrovnik
@@ -515,6 +507,7 @@ class Terminal(Frame):
         # CM TODO: check if needed. displayText implemented differently
         self.textToDisplay = None
 
+        # TODO: add a 'Clear Terminal' button
         clear_btn = Button(self, text="Clear Display", command=self.clear)
         clear_btn.grid(row=0, column=0, padx=10, sticky='W')
 
@@ -576,7 +569,7 @@ class Terminal(Frame):
         cur = self.txt.index(INSERT)
         charPos = int(cur.split('.')[1])
         if charPos < charIndex:
-            return 'break'  # Returning 'break' prevents the native behavior, e.g. Del
+            return 'break'
 
     def onUpArrowKey(self, event):
         if self.historyIndex > 0:
@@ -599,7 +592,7 @@ class Terminal(Frame):
         if self.historyIndex < len(self.history):
             newLine = self.history[self.historyIndex]
         self.txt.insert(END, newLine)
-        return 'break'  # Returning 'break' prevents the native behavior, e.g. Up/Down/Return
+        return 'break'
 
     def clear(self):
         self.txt.delete(1.0, END)
@@ -644,12 +637,11 @@ class Terminal(Frame):
 #     def printMessage(self):
 #         print("Wow! It worked :)")
 
-
 if __name__ == "__main__":
 
-    # def updtStsBar(statusMsg):
-    #     print(statusMsg)
-    #     stsBarComm.config(text=statusMsg)
+    def updtStsBar(statusMsg):
+        print(statusMsg)
+        stsBarComm.config(text=statusMsg)
 
     def showAbout():
         aboutMsg = '''
@@ -775,12 +767,10 @@ if __name__ == "__main__":
     tools_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Tools", menu=tools_menu)
     #tools_menu.add_command(label="Open script", command=loadConfig)
-    tools_menu.add_command(label="VT distribution",
-                           command=get_vt_distribution)
+    tools_menu.add_command(label="VT distribution", command=get_vt_distribution)
     tools_menu.add_command(
         label="Dubrovnik functional test", command=dub_func_test)
-    tools_menu.add_command(label="INA230 calibration",
-                           command=ina230_calibration)
+    tools_menu.add_command(label="INA230 calibration", command=ina230_calibration)
     tools_menu.add_command(label="SFDP Program", command=program_sfdp)
     tools_menu.add_command(label="Other tools")
 
@@ -797,37 +787,26 @@ if __name__ == "__main__":
     help_menu.add_separator()
     help_menu.add_command(label="About", command=showAbout)
 
-    serCom.loadConfig()  # includes autoConnect and lastUsedPort
+    serCom.loadConfig()
 
-    # * At this point we have a list of valid COM ports.
-    # * Next step is to connect to one of them.
     if serCom.autoConnect:  # if autoConnect set
-        if len(portList) > 1:  # no need to check if ==0. boardcom.py already does
+        if len(portList) > 1:  # no need to check for 0. boardcom.py already does
             if serCom.lastUsedPort in portList:  # if last used port is in the portList
-                # connect to that port
-                serCom.connectPort(serCom.lastUsedPort,
-                                   checkIsFlashPresent=False)
+                serCom.connectPort(serCom.lastUsedPort)  # connect to that port
         else:
-            # otherwise connect to the first in the list
-            serCom.connectPort(portList[0], checkIsFlashPresent=False)
+            serCom.connectPort(portList[0])  # otherwise connect to the first in the list
     # If not autoconnect then do not connect to anything
 
-        # * At this point we are connected to the UART chip on Dubrovnik, but not yet
-        # * to the MCU. It may require a manual RESET to boot.
-        resp = comm.connectToMCU()
-        # term.tprint(resp, printOn='guiConsole')
-        term.tprint(resp, printOn='both')
-        # term.clear()
-
-        while comm.isFlashPresent() == 0:
-            if not askretrycancel(
-                'Dubrovnik Dashboard Warning', 'No flash device detected\n"Cancel" to continue or\nInstall a device, RESET the board and press "Retry"'):
-                # term.clear()
-                break
-        term.tprint(resp, printOn='both')
-        # term.clear()
-
+        resetMsg = comm.checkInBufferForResetMsg()
+        if "***" in resetMsg:
+            term.displayText(resetMsg.strip())
+        
+        device_pn = du.get_part_number(comm)
+        serCom.serParams += '    Device: ' + du.get_part_number(comm)
+    
     stsBarComm.config(text=serCom.serParams)
+
+    # print(f'comm: {comm}')
 
     # print(comm.serialAvailable(comport))
 

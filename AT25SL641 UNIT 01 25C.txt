@@ -1,0 +1,10 @@
+Part Number: AT25SL641
+Temperature: 25C
+Unit: 01
+ Mode  Vcc[V] freq[MHz] Icc1[mA] t_elapsed[us] num_errors start_address
+ ----------------------------------------------------------------------
+  spi   1.80     32.00    5.148         73012           0             0
+ q144   1.80     32.00    5.467         18197           0          c000
+ q044   1.80     32.00    5.475         18197           0          c000
+
+Number of failed cases 0

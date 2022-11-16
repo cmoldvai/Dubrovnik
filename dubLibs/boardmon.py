@@ -7,6 +7,7 @@ import time
 
 # Keep reading from serial line until full prompt is seen
 
+
 class Comm:
     """wrapper for communications interface
     """
@@ -37,8 +38,8 @@ class Comm:
             cm += '\r'
 
         if not self.icpause:
-            byteseq = cm.encode('utf-8')    #convert to ASCII/UTF-8
-            self.handle.write(byteseq)      #send to port
+            byteseq = cm.encode('utf-8')    # convert to ASCII/UTF-8
+            self.handle.write(byteseq)      # send to port
         else:
             for bb in cm:
                 bytes = bb.encode('utf-8')
@@ -50,15 +51,15 @@ class Comm:
             b = self.handle.read(1)
             if len(b) == 0:
                 # We can only get here due to timeout
-                #print("Could not find prompt; so far read:")
-                #print(s)
+                # print("Could not find prompt; so far read:")
+                # print(s)
                 return 1
 
             c = b.decode('utf-8')
             self.raw += c
             if self.raw.endswith(self.prompt):
-                #ok = True
-                #print(self.raw)
+                # ok = True
+                # print(self.raw)
                 self.cooked = self.raw.lower()
                 return 0
 

@@ -9,7 +9,7 @@ from tkinter import scrolledtext
 from dubLibs import boardcom
 from dubLibs import dubrovnik  # instead of "from dubLibs import Dubrovnik as du"
 from tkinter.filedialog import askopenfilename
-from tkinter.messagebox import askretrycancel, showerror, showwarning, showinfo
+from tkinter.messagebox import showerror, showwarning, showinfo
 
 PROMPT = '>>> '
 CLEAR_CMD = 'clear'
@@ -110,8 +110,7 @@ class SerComFrame(Frame):
 
     def checkConnection(self):
         if self.portStatus == 'disconnected':
-            showerror('Dubrovnik Dashboard Error',
-                      'Unable to open COM port!\nConnect to the board')
+            showerror('Dubrovnik Dashboard Error', 'Unable to open COM port!\nConnect to the board')
 
     def setSerialParams(self):
         """ Gets serial communication port parameters """
@@ -150,7 +149,6 @@ class SerComFrame(Frame):
                'readSpiMode': read.spiMode.get(),
                'readStartAddr': read.startAddr.get(),
                'readLength': read.readLength.get()
-            #    'readDispMode': read.dispmode_cb.get()
                }
         with open(f'{self.dubrovnikConfigPath}\dubrovnik.cfg', 'w') as fh:
             # print(cfg)  # TODO remove print when stable
@@ -175,7 +173,6 @@ class SerComFrame(Frame):
             read.spiMode.set(cfg['readSpiMode'])
             read.startAddr.set(cfg['readStartAddr'])
             read.readLength.set(cfg['readLength'])
-            # read.readDispMode.set(cfg['readDispMode'])
             fname.close()
         except FileNotFoundError:
             self.loadDefaultSettings()
@@ -480,8 +477,7 @@ class ReadFrame(Frame):
             btn2_read.grid(row=5, column=1, padx=2, pady=2)
 
     def dispmode_cb_updated(self, event):
-        # get selected item in Combo (a dict key)
-        dispModeSelKey = self.dispmode_cb.get()
+        dispModeSelKey = self.dispmode_cb.get()  # get the selected item in Combo
         # assign the associated value to dispmode
         mode = self.dispmodeOptions[dispModeSelKey]
         du.dispmode = mode  # update dispmode in class Dubrovnik
@@ -515,11 +511,11 @@ class Terminal(Frame):
         # CM TODO: check if needed. displayText implemented differently
         self.textToDisplay = None
 
-        clear_btn = Button(self, text="Clear Display", command=self.clear)
-        clear_btn.grid(row=0, column=0, padx=10, sticky='W')
+        # clear_btn = Button(self, text="Clear Display", command=self.clear)
+        # clear_btn.grid(row=0, column=0, padx=10, sticky='W')
 
         self.txt = scrolledtext.ScrolledText(
-            self, wrap=CHAR, width=80, height=30, font=("Consolas", 11))
+            self, wrap=CHAR, width=80, height=12, font=("Consolas", 11))
         self.txt.grid(row=1, column=0, columnspan=99,
                       pady=10, padx=10, sticky="NSEW")
 
@@ -694,7 +690,7 @@ if __name__ == "__main__":
     serCom = SerComFrame(root, DEBUG=False)  # invoking the class
     # serCom.pack(side=TOP, fill=BOTH)
     serCom.grid_propagate(0)
-    serCom.config(width=350, height=80, bd=2, relief=GROOVE)
+    serCom.config(width=350, height=60, bd=2, relief=GROOVE)
     serCom.grid(row=0, column=0, padx=10, pady=4, sticky=NW)
     serCom.combo.set(portList[0])
     serCom.comm = comm
@@ -815,19 +811,15 @@ if __name__ == "__main__":
         # * At this point we are connected to the UART chip on Dubrovnik, but not yet
         # * to the MCU. It may require a manual RESET to boot.
         resp = comm.connectToMCU()
-        # term.tprint(resp, printOn='guiConsole')
-        term.tprint(resp, printOn='both')
-        # term.clear()
+        # print(resp)
+        term.clear()
 
-        while comm.isFlashPresent() == 0:
-            if not askretrycancel(
-                'Dubrovnik Dashboard Warning', 'No flash device detected\n"Cancel" to continue or\nInstall a device, RESET the board and press "Retry"'):
-                # term.clear()
-                break
-        term.tprint(resp, printOn='both')
-        # term.clear()
+        if comm.isFlashPresent() == 0:
+            showwarning(
+                'Warning', 'No flash device detected\nInstall a device and RESET the board')
 
     stsBarComm.config(text=serCom.serParams)
+
 
     # print(comm.serialAvailable(comport))
 

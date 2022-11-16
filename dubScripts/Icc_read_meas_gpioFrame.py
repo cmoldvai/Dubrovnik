@@ -1,8 +1,19 @@
 import os
 # import sys
 import time
-from dubLibs import boardcom
-from dubLibs import dubrovnik as du
+
+from dubLibs import boardcom, dubrovnik
+
+
+def paint_memory():
+    # ****** Erase specific number of memory blocks *******
+    du.block_erase(comm, num_blocks=20, block_size=4, echo=0)
+
+    # ****** Paint the memory with specific data pattern *******
+    prog_time = du.paint_flash_with_pattern(comm, paint_flash_params)
+    prog_time = du.time_conv_from_usec(prog_time)
+    print(f'Programming time: {prog_time}')
+
 
 os.system('cls')  # clear terminal screen
 # print(sys.path)
@@ -14,15 +25,17 @@ os.system('cls')  # clear terminal screen
 # *********************
 # *****  Connect  *****
 # *********************
-comm = boardcom.BoardComm()   # create an instance of class BoardComm
+comm = boardcom.BoardComm()   # create an instance of the class
+du = dubrovnik.Dubrovnik()  # create an instance of the class
 connectedPort = comm.find_and_connect(echo=1)
 
 # ENTER System Parameters Here
 deviceNum = '01'
 temperature = '25C'
 pmon_id = '5'
+PAINT_MEMORY = False  # True/False
 
-du.dispmode(comm, 'w')
+du.set_dispmode(comm, 'w')
 config = du.get_config(comm)
 partNumber = config['Part#']
 voltage = config['Voltage']
@@ -37,9 +50,6 @@ print('Status Registers:')
 du.read_id(comm, narg=2)
 
 
-# ****** Erase specific number of memory blocks *******
-du.block_erase(comm, num_blocks=20, block_size=4, echo=0)
-
 # ******************************
 #   Program Flash with Pattern
 # ******************************
@@ -49,19 +59,19 @@ du.block_erase(comm, num_blocks=20, block_size=4, echo=0)
 # 0xc000-0xffff   : "f0f0f0f0"
 # 0x10000-0x13fff : "ff00ff00"
 
+page_size = 0x100
 paint_flash_params = [[0x0000, 0x4000, 'aaaaaaaa'],
                       [0x4000, 0x4000, '00000000'],
                       [0x8000, 0x4000, 'ffffffff'],
                       [0xc000, 0x4000, 'f0f0f0f0'],
                       [0x10000, 0x4000, 'ff00ff00']]
 
-prog_time = du.paint_flash_with_pattern(comm, paint_flash_params)
-prog_time = du.time_unit_conversion(prog_time)
-print(f'Programming time: {prog_time}')
+if PAINT_MEMORY == True:
+    print('\nWait!!! Painting memory with specified bit pattern...\n')
+    paint_memory()
 
 for param in paint_flash_params:
-    du.read(comm, param[0], 0x40, echo=1, dispmode='w')
-
+    du.read(comm, param[0], 0x40, echo=1)
 
 # '''
 # *************************************************
@@ -80,12 +90,21 @@ file.write(
 file.write(
     ' ----------------------------------------------------------------------\n')
 
-spi_mode = ['spi', 'q044']
+spi_mode = ['spi', 'q114', 'q144', 'q044']
 # spi_mode = ['spi', 'q114', 'q144', 'q044']
-set_voltage = [3.0, 3.3]
+set_voltage = [1.8]
 # set_voltage = [3, 3.3, 3.6]
-set_freq = [10, 60]
+set_freq = [32]
 # set_freq = [10, 20, 40, 60, 80]
+
+for v in set_voltage:
+    v_max = float(voltage) + 0.3
+    if v > v_max:
+        print('\nCAUTION!!!\n')
+        print(
+            f'Specified voltage: {v:.3f}V exceeds device Abs Max Limits: {v_max:.3f}V\n')
+        comm.disconnect(connectedPort, echo=1)
+        quit()
 
 icc_results = []
 tot_error_cnt = 0
@@ -95,23 +114,29 @@ for mode in spi_mode:
     # ATTENTION: IMPORTANT!!!
     # Set QE mode to 1. This command may be different for different devices
     if mode[0].lower() == 'q':
-        du.cmd(comm, '6; 31 2', echo=1)
-        du.cmd(comm, '35', echo=1)
+        comm.send('6; 31 2')
+        comm.send('35')
+        start_addr = paint_flash_params[3][0]
     else:
-        du.cmd(comm, '6; 31 0', echo=1)
-        du.cmd(comm, '35', echo=1)
+        comm.send('6; 31 0')
+        comm.send('35')
+        start_addr = paint_flash_params[0][0]
+
+    print(f'Start Address: 0x{start_addr:x}\n')
+    addr = start_addr
 
     print('Read Status Registers - checking QE bit:')
-    du.cmd(comm, '05; 35', echo=1)
+    comm.send('05; 35')
+    comm.response()
 
-    start_addr = du.wr_buffer(comm, mode)
+    # start_addr = du.wr_buffer(comm, mode)
     read_opcode = du.set_spi_mode(mode)
     print(f'MODE: {mode}')
 
     for v in set_voltage:
-        du.cmd(comm, f'volt {v}', echo=1)        # set voltage
+        comm.send(f'volt {v}')       # set voltage
         for f in set_freq:
-            du.cmd(comm, f'freq {f}', echo=1)     # set frequency
+            comm.send(f'freq {f}')   # set frequency
             read_str = ''
             addon = ''
 
@@ -119,10 +144,9 @@ for mode in spi_mode:
             read_block_size = 0x4000
             block = f'{read_block_size:x}'
 
-            print(f'Start Address: 0x{start_addr:x}\n')
             for i in range(0, N):
-                addr = start_addr
-                if i == 0:           # generate FRAMING pulses with GPIOs for scope triggering
+
+                if i == 0:           # in the first loop generate FRAMING pulses with GPIOs for scope triggering
                     # if SPI MODE is '144' or '044' then we need to add MODE BITS (a0h or 00h) to the command line
                     if mode == 'q144':
                         addon = f'gpiowr 7 1;{read_opcode} {addr:x} 00 {block};gpiowr 7 0;'
@@ -135,7 +159,7 @@ for mode in spi_mode:
                         addon = f'{read_opcode} {addr:x} 00 {block};'
                     else:
                         pass
-                else:               # don't generate FRAMING pulses
+                else:               # in the rest of the loop don't generate FRAMING pulses
                     # if SPI MODE = '1-4-4' then we need to add the MODE BITS ('0') to the string
                     if mode == 'q144':
                         addon = f'{read_opcode} {addr:x} 00 {block};'
@@ -160,27 +184,27 @@ for mode in spi_mode:
             comm.send('dvar elapsed_time')
             e_time = comm.response().split('\n')
             print(e_time[1])
-            du.cmd(comm, f'pmon {pmon_id} calc', echo=0)
+            comm.send(f'pmon {pmon_id} calc')
             pmon1 = comm.response()
             print(pmon1)
 
             elapsed_time = str(round(end_time - start_time, 3))
-            print(f'Elapsed READ time: {elapsed_time}\n')
+            print(f'Total elapsed time: {elapsed_time}\n')
 
             # ********************************
             # *****     SAVE RESULTS     *****
             # ********************************
             ch1 = pmon1.index('=')         # find index for '='
-            ch2 = pmon1.index('\n>>>')     # find index for \n>>>
+            ch2 = pmon1.index('mA')     # find index for \n>>>
             # between these is the current read and remove the 'mA' from the string
-            icc1 = pmon1[ch1 + 1: ch2 - 3]
+            icc1 = pmon1[ch1 + 1: ch2 - 1]
 
             # verifying if the read memory matches the write buffer
             comm.send('cmp 0 {read_block_size:x}')
             comp_result_msg = comm.response()
 
             SAVE_ERR_MSG = 0
-            if not('equal' in comp_result_msg):
+            if not('equal' in comp_result_msg.lower()):
                 print(comp_result_msg)
                 if SAVE_ERR_MSG == 1:
                     file.write(f'{comp_result_msg}')

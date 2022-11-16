@@ -2,7 +2,7 @@ import os
 import sys
 from time import sleep
 from dubLibs import boardcom
-from dubLibs import dubrovnik as du
+from dubLibs import dubrovnik
 
 print('********************************')
 print('***** DUROVNIK TEST START *****')
@@ -14,7 +14,9 @@ print('********************************\n')
 # *********************
 # *****  Connect  *****
 # *********************
-comm = boardcom.BoardComm()   # create an instance of class BoardComm
+comm = boardcom.BoardComm()  # create an instance of class BoardComm
+du = dubrovnik.Dubrovnik()   # create an instance of class Dubrovnik
+
 connectedPort = comm.find_and_connect(echo=1)
 
 # #################################
@@ -25,14 +27,14 @@ connectedPort = comm.find_and_connect(echo=1)
 freq = 8   # chose 8 (8.25), 15 (14.67) or 30 (29.33)
 pmon_id = '5'
 
-du.cmd(comm, f'freq {freq}')
-du.cmd(comm, 'dispmode w')
+comm.send(f'freq {freq}')
+du.set_dispmode(comm, 'w')
 
 # Read board configuration and reset the chip
 print(du.get_version(comm))
 config = du.get_config(comm)
 print(config)
-partNumber = config['Part#'].upper()
+partNumber = du.get_part_number(comm)
 voltage = config['Voltage']
 min_dly = int(config['min meas time (us)'])
 
@@ -69,7 +71,7 @@ comm.send('muxset 0')
 print('\n ********** PMON TEST **********')
 du.pmoncfg(comm, meas='iv')
 
-for pmon in range(5):
+for pmon in range(7):
     pmon_id = str(pmon)
     pmon_str = f'pmon {pmon_id} start; timer start; delay {1.2*min_dly}; timer stop; pmon {pmon_id} stop; pmon {pmon_id} calc'
 

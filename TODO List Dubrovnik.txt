@@ -23,5 +23,29 @@ NOTES:
 
    I am thinking to change that: possibly to a)
 
+
+   Gordon's wishlist:
+   - display prog/erase/read times in the console (or status bar)
+   - add a "prog & verify" button
+      returns differences, or which block not correct
+   - program and log how long it takes to program each page (to check how many pages are over erased)
+
+   
+DEBUG SESSION:
+Issue:
+1. Start program board turned off.
+  - Retry pop-up
+  - Connect to power and don't press RESET button on the board
+  - Click "Retry" button
+    System crashes
+
+
+
+
+
+
+Feature Request:
+1. Hit Read button the send command string is not show
+
    
 

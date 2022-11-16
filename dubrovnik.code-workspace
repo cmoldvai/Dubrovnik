@@ -5,10 +5,14 @@
 		},
 		{
 			"path": "..\\..\\Users\\cmoldvai\\OneDrive\\Programming\\Python"
+		},
+		{
+			"path": "..\\..\\Users\\cmoldvai\\AppData\\Roaming\\Dubrovnik"
 		}
 	],
 	"settings": {
 		"python.pythonPath": "C:\\Users\\cmoldvai\\AppData\\Local\\Programs\\Python\\Python39\\python.exe",
-		"jupyter.jupyterServerType": "local"
+		"jupyter.jupyterServerType": "local",
+		"liveServer.settings.multiRootWorkspaceName": "Dubrovnik"
 	}
 }

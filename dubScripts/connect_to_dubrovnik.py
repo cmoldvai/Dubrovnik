@@ -1,5 +1,5 @@
 from dubLibs import boardcom
-from dubLibs import dubrovnik as du
+from dubLibs import dubrovnik
 
 # ***************************
 # *****     M A I N     *****
@@ -7,7 +7,12 @@ from dubLibs import dubrovnik as du
 
 # ***** CONNECT *****
 comm = boardcom.BoardComm()   # create an instance of class BoardComm
+du = dubrovnik.Dubrovnik()
+
 connectedPort = comm.find_and_connect(echo=1)
+
+ver = du.get_version(comm)
+print(ver)
 
 config = du.get_config(comm)
 print(config)
@@ -24,10 +29,10 @@ print(partNumber)
 # erase_time = du.block_erase(comm, block_size=64, start_addr=0x10000, echo=0)
 # print(f'Erase time: {erase_time}')
 
-t_wait = du.pattern_program(comm,start_addr=0x10025,length=0x100,increment=1,echo=1)
+t_wait = du.page_program(comm,start_addr=0x10025,length=0x100,increment=1,echo=1)
 print(t_wait)
 
-du.read(comm, start_addr=0x10000, length=0x200, dispmode='w', echo=0)
+du.read(comm, start_addr=0x10000, length=0x200, echo=0)
 
 
 # ***** DISCONNECT *****
