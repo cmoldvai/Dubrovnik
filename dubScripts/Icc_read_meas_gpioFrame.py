@@ -202,6 +202,7 @@ for mode in spi_mode:
             # verifying if the read memory matches the write buffer
             comm.send('cmp 0 {read_block_size:x}')
             comp_result_msg = comm.response()
+            print(comp_result_msg)
 
             SAVE_ERR_MSG = 0
             if not('equal' in comp_result_msg.lower()):

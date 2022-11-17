@@ -1,16 +1,20 @@
 import os
-# import sys
 import time
 
 from dubLibs import boardcom, dubrovnik
 
 
-def paint_memory():
-    # ****** Erase specific number of memory blocks *******
-    du.block_erase(comm, num_blocks=20, block_size=4, echo=0)
+def paint_memory(mem_params):
+    '''Erase specific number of memory blocks with specified pattern'''
 
-    # ****** Paint the memory with specific data pattern *******
-    prog_time = du.paint_flash_with_pattern(comm, paint_flash_params)
+    # before programming, erase the memory
+    print('\nErasing memory blocks...')
+    for i, item in enumerate(mem_params):
+        du.block_erase(
+            comm, start_addr=item[0], block_size=4, num_blocks=4, echo=1)
+
+    print('Wait!!! Painting memory...')
+    prog_time = du.paint_flash_with_pattern(comm, mem_params)
     prog_time = du.time_conv_from_usec(prog_time)
     print(f'Programming time: {prog_time}')
 
@@ -33,7 +37,7 @@ connectedPort = comm.find_and_connect(echo=1)
 deviceNum = '01'
 temperature = '25C'
 pmon_id = '5'
-PAINT_MEMORY = False  # True/False
+PAINT_MEMORY = True  # True/False
 
 du.set_dispmode(comm, 'w')
 config = du.get_config(comm)
@@ -49,29 +53,28 @@ print(f"Frequency     : {freq}MHz")
 print('Status Registers:')
 du.read_id(comm, narg=2)
 
+page_size = 0x100
 
-# ******************************
-#   Program Flash with Pattern
+# PAINT MEMORY BIT PATTERN
 # ******************************
 # 0x0000-0x3fff   : "aaaaaaaa"
 # 0x4000-0x7fff   : "00000000"
 # 0x8000-0xbfff   : "ffffffff"
 # 0xc000-0xffff   : "f0f0f0f0"
 # 0x10000-0x13fff : "ff00ff00"
+# ******************************
 
-page_size = 0x100
 paint_flash_params = [[0x0000, 0x4000, 'aaaaaaaa'],
                       [0x4000, 0x4000, '00000000'],
                       [0x8000, 0x4000, 'ffffffff'],
                       [0xc000, 0x4000, 'f0f0f0f0'],
                       [0x10000, 0x4000, 'ff00ff00']]
 
-if PAINT_MEMORY == True:
-    print('\nWait!!! Painting memory with specified bit pattern...\n')
-    paint_memory()
+if PAINT_MEMORY is True:
+    paint_memory(paint_flash_params)
 
 for param in paint_flash_params:
-    du.read(comm, param[0], 0x40, echo=1)
+    du.read(comm, param[0], 0x20, echo=1)
 
 # '''
 # *************************************************
@@ -90,15 +93,18 @@ file.write(
 file.write(
     ' ----------------------------------------------------------------------\n')
 
-spi_mode = ['spi', 'q144', 'q044']
 # spi_mode = ['spi', 'q114', 'q144', 'q044']
-set_voltage = [1.8]
 # set_voltage = [3, 3.3, 3.6]
-set_freq = [32]
 # set_freq = [10, 20, 40, 60, 80]
+spi_mode = ['spi', 'q144']
+set_voltage = [1.8]
+set_freq = [64]
 
+# To make sure device is not damaged during test
+# verify if selected voltages are withing device limits
 for v in set_voltage:
     v_max = float(voltage) + 0.3
+    # If voltage is larger than abs max disconnect and quit
     if v > v_max:
         print('\nCAUTION!!!\n')
         print(
@@ -117,10 +123,12 @@ for mode in spi_mode:
         comm.send('6; 31 2')
         comm.send('35')
         start_addr = paint_flash_params[3][0]
+        wr_buff = paint_flash_params[3][2]
     else:
         comm.send('6; 31 0')
         comm.send('35')
         start_addr = paint_flash_params[0][0]
+        wr_buff = paint_flash_params[0][2]
 
     print(f'Start Address: 0x{start_addr:x}\n')
     addr = start_addr
@@ -134,7 +142,8 @@ for mode in spi_mode:
     print(f'MODE: {mode}')
 
     for v in set_voltage:
-        comm.send(f'volt {v}')       # set voltage
+        comm.send(f'psset 0 {v}')       # set voltage
+
         for f in set_freq:
             comm.send(f'freq {f}')   # set frequency
             read_str = ''
@@ -144,33 +153,20 @@ for mode in spi_mode:
             read_block_size = 0x4000
             block = f'{read_block_size:x}'
 
-            for v in set_voltage:
-                comm.send(f'volt {v}')       # set voltage
-                for f in set_freq:
-                    comm.send(f'freq {f}')   # set frequency
-                    read_str = ''
-                    addon = ''
-
-                    # N = 3
-                    # read_block_size = 0x400
-                    N = 16
-                    read_block_size = 0x4000
-                    block = f'{read_block_size:x}'
-
-                    for i in range(0, N):
-                        if mode == 'q144':
-                            addon = f'{read_opcode} {addr:x} 00 {block};'
-                        elif mode == 'q044':
-                            if i == 0:
-                                addon = f'eb {addr:x} a0 {block};'
-                            elif i == N-1:
-                                addon = f'ebc {addr:x} 00 {block};'
-                            else:
-                                addon = f'ebc {addr:x} a0 {block};'
-                        else:
-                            addon = f'{read_opcode} {addr:x} {block};'
-                        read_str += addon
-                        print(f'addon: {addon}')
+            for i in range(0, N):
+                if mode == 'q144':
+                    addon = f'{read_opcode} {addr:x} 00 {block};'
+                elif mode == 'q044':
+                    if i == 0:
+                        addon = f'eb {addr:x} a0 {block};'
+                    elif i == N-1:
+                        addon = f'ebc {addr:x} 00 {block};'
+                    else:
+                        addon = f'ebc {addr:x} a0 {block};'
+                else:
+                    addon = f'{read_opcode} {addr:x} {block};'
+                read_str += addon
+                # print(f'addon: {addon}')
 
             # All power monitoring commands are inline with page programming
             # to exclude delays introduced by Python interpreter
@@ -196,22 +192,33 @@ for mode in spi_mode:
             # ********************************
             # *****     SAVE RESULTS     *****
             # ********************************
-            ch1 = pmon1.index('=')         # find index for '='
+            ch1 = pmon1.index('=')      # find index for '='
             ch2 = pmon1.index('mA')     # find index for \n>>>
             # between these is the current read and remove the 'mA' from the string
             icc1 = pmon1[ch1 + 1: ch2 - 1]
 
-            # verifying if the read memory matches the write buffer
-            comm.send('cmp 0 {read_block_size:x}')
+            # Verifying if the read memory matches the write buffer
+            # load write buffer with reference values
+            comm.send(f'pattern {wr_buff} 0')
+            # compare content of read and write buffers
+            comm.send(f'cmp 0 {read_block_size:x}')
             comp_result_msg = comm.response()
 
-            SAVE_ERR_MSG = 0
+            SAVE_ERR_MSG = 0  # 0 or 1
+            # if response does not contatin the word 'equal', the 'read' and 'write' buffers are different
             if not('equal' in comp_result_msg.lower()):
-                print(comp_result_msg)
+                # print(comp_result_msg)
                 if SAVE_ERR_MSG == 1:
-                    file.write(f'{comp_result_msg}')
-                err_msg = comp_result_msg.split('\n')[-2]
-                err_cnt = int(err_msg.split(' ')[1])
+                    file.write(f'{comp_result_msg}\n')
+                err_msg = comp_result_msg.split('\n')[-1]
+                print(err_msg)
+                try:
+                    err_cnt = int(err_msg.split()[-2])
+                except:
+                    print(
+                        'Buffer overload!!! Printout of differences not available.\n\
+                            Use cmp TestBench command from terminal to further explore')
+                    err_cnt = -1
                 tot_error_cnt += 1
 
             file.write(
