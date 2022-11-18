@@ -34,8 +34,8 @@ du = dubrovnik.Dubrovnik()  # create an instance of the class
 connectedPort = comm.find_and_connect(echo=1)
 
 # ENTER System Parameters Here
-deviceNum = '02'
-temperature = '30C'
+deviceNum = '01'
+temperature = '25C'
 pmon_id = '5'
 PAINT_MEMORY = False  # True/False
 
