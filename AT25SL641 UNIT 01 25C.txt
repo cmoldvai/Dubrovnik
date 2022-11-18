@@ -3,7 +3,7 @@ Temperature: 25C
 Unit: 01
  Mode  Vcc[V] freq[MHz] Icc1[mA] t_elapsed[us] num_errors start_address
  ----------------------------------------------------------------------
-  spi   1.80     64.00    7.158         35694           0             0
- q144   1.80     64.00   12.103         12735           0          c000
+  spi   1.80     64.00    7.168         35695           0             0
+ q144   1.80     64.00   12.135         12735           0          c000
 
 Number of failed cases 0

@@ -66,7 +66,7 @@ paint_flash_params = [[0x0000, 0x4000, 'aaaaaaaa'],
                       [0xc000, 0x4000, 'f0f0f0f0'],
                       [0x10000, 0x4000, 'ff00ff00']]
 
-if PAINT_MEMORY == True:
+if PAINT_MEMORY is True:
     print('\nWait!!! Painting memory with specified bit pattern...\n')
     paint_memory()
 

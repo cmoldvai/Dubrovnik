@@ -10,6 +10,9 @@ def paint_memory(mem_params):
     # before programming, erase the memory
     print('\nErasing memory blocks...')
     for i, item in enumerate(mem_params):
+        # 64Mb device chip erase: 128 * 64kB blocks
+        # du.block_erase(
+        #     comm, start_addr=item[0], block_size=64, num_blocks=128, echo=0)
         du.block_erase(
             comm, start_addr=item[0], block_size=4, num_blocks=4, echo=1)
 
@@ -34,10 +37,10 @@ du = dubrovnik.Dubrovnik()  # create an instance of the class
 connectedPort = comm.find_and_connect(echo=1)
 
 # ENTER System Parameters Here
-deviceNum = '02'
-temperature = '30C'
+deviceNum = '01'
+temperature = '25C'
 pmon_id = '5'
-PAINT_MEMORY = False  # True/False
+PAINT_MEMORY = True  # True/False
 
 du.set_dispmode(comm, 'w')
 config = du.get_config(comm)
@@ -64,11 +67,12 @@ page_size = 0x100
 # 0x10000-0x13fff : "ff00ff00"
 # ******************************
 
-paint_flash_params = [[0x0000, 0x4000, 'aaaaaaaa'],
-                      [0x4000, 0x4000, '00000000'],
-                      [0x8000, 0x4000, 'ffffffff'],
-                      [0xc000, 0x4000, 'f0f0f0f0'],
-                      [0x10000, 0x4000, 'ff00ff00']]
+paint_flash_params = [[0x20000, 0x40000, '01234567']]
+# paint_flash_params = [[0x0000, 0x4000, 'aaaaaaaa'],
+#                       [0x4000, 0x4000, '00000000'],
+#                       [0x8000, 0x4000, 'ffffffff'],
+#                       [0xc000, 0x4000, 'f0f0f0f0'],
+#                       [0x10000, 0x4000, 'ff00ff00']]
 
 if PAINT_MEMORY is True:
     paint_memory(paint_flash_params)
@@ -121,7 +125,7 @@ for mode in spi_mode:
     # Set QE mode to 1. This command may be different for different devices
     if mode[0].lower() == 'q':
         comm.send('6; 31 2')
-        comm.send('35')
+        comm.send('35')  # TODO remove hard code. Fails when list length < 3
         start_addr = paint_flash_params[3][0]
         wr_buff = paint_flash_params[3][2]
     else:
