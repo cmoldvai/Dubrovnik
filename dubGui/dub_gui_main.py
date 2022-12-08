@@ -35,6 +35,7 @@ class SerComFrame(Frame):
         if appData[-1] == '\\':
             appData = appData[:-1]  # get rid of the trailing backslash, if any
         # append 'Dubrovnik' folder
+        # create folder name string
         self.dubrovnikConfigPath = f'{appData}\\Dubrovnik'
         if not os.path.isdir(self.dubrovnikConfigPath):  # if folder doesn't exist
             # print(self.dubrovnikConfigPath)
@@ -110,7 +111,8 @@ class SerComFrame(Frame):
 
     def checkConnection(self):
         if self.portStatus == 'disconnected':
-            showerror('Dubrovnik Dashboard Error', 'Unable to open COM port!\nConnect to the board')
+            showerror('Dubrovnik Dashboard Error',
+                      'Unable to open COM port!\nConnect to the board')
 
     def setSerialParams(self):
         """ Gets serial communication port parameters """
@@ -819,7 +821,6 @@ if __name__ == "__main__":
                 'Warning', 'No flash device detected\nInstall a device and RESET the board')
 
     stsBarComm.config(text=serCom.serParams)
-
 
     # print(comm.serialAvailable(comport))
 
