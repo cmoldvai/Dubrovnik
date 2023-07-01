@@ -38,3 +38,5 @@ print(partNumber)
 
 # ***** DISCONNECT *****
 comm.disconnect(connectedPort, echo=1)
+
+input('Press ENTER to exit')

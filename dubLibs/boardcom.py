@@ -75,7 +75,7 @@ class BoardComm:
                 curr_numBytes = self.handle.in_waiting
             else:
                 print("ERROR! Number of bytes in the buffer decreased")
-                return(-1)
+                return (-1)
             time.sleep(.05)
             print(f'{i}: Running total of waiting bytes: {curr_numBytes}')
 
@@ -91,7 +91,8 @@ class BoardComm:
         portList = []
         ports = serial.tools.list_ports.comports()
         for i in range(len(ports)):
-            if ports[i].manufacturer == 'FTDI':  # find ports made by 'FTDI'
+            # find ports made by 'FTDI'
+            if ports[i].manufacturer == 'FTDI' or ('045B' in ports[i].hwid):
                 portList.append(ports[i].device)
         return portList
 
@@ -176,7 +177,8 @@ class BoardComm:
 
         # increase serial timeout for long Erase times (minutes)
         self.handle.timeout = 200
-        print(self.handle.get_settings())  # TODO sometimes long timeout not set
+        # TODO sometimes long timeout not set
+        print(self.handle.get_settings())
         return resp
 
     def isFlashPresent(self):

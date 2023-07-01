@@ -1,0 +1,2 @@
+cd c:\mylibs\Dubrovnik\dubScripts
+python.exe pgm_ihex_srec_zero_opt_V2.py COM5 blinky_x4.mcs

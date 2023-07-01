@@ -772,7 +772,7 @@ if __name__ == "__main__":
 
     tools_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Tools", menu=tools_menu)
-    #tools_menu.add_command(label="Open script", command=loadConfig)
+    # tools_menu.add_command(label="Open script", command=loadConfig)
     tools_menu.add_command(label="VT distribution",
                            command=get_vt_distribution)
     tools_menu.add_command(
