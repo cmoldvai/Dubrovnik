@@ -655,7 +655,7 @@ if __name__ == "__main__":
                    *** Dubrovnik Workbench ***
                    ***************************
 
-                   Ver 0.5
+                   Ver 2.0
 
                    Authors:
                    Csaba Moldvai
@@ -698,17 +698,18 @@ if __name__ == "__main__":
     serCom.comm = comm
 
 # ******************************
-# ****** Erase Panel   *********
+# ****** Erase Window   *********
 # ******************************
-    erase = EraseFrame(root, DEBUG=False)  # invoking the class
+    # erase = EraseFrame(root, DEBUG=False)  # invoking the class
+    erase = Toplevel(root)  # invoking the class
     # erase.pack(side=LEFT, fill=BOTH)
-    erase.grid_propagate(0)
+    # erase.grid_propagate(0)
     erase.config(width=350, height=210, bd=2, relief=GROOVE)
-    erase.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
-    erase.comm = comm     # initializeing self.com in Erase class
+    # erase.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
+    # erase.comm = comm     # initializeing self.com in Erase class
 
 # ******************************
-# ****** Program Panel *********
+# ****** Program Window *********
 # ******************************
     # TODO rename program to progFrm
     program = ProgramFrame(root, DEBUG=False)  # invoking the class
@@ -719,7 +720,7 @@ if __name__ == "__main__":
     program.comm = comm   # initializeing self.com in Program class
 
 # ***************************
-# ****** Read Panel *********
+# ****** Read Window *********
 # ***************************
     read = ReadFrame(root, DEBUG=False)  # invoking the class
     # read.pack(side=LEFT, fill=BOTH)
@@ -773,6 +774,12 @@ if __name__ == "__main__":
     tools_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Tools", menu=tools_menu)
     # tools_menu.add_command(label="Open script", command=loadConfig)
+    tools_menu.add_command(label="Block Erase",
+                           command=get_vt_distribution)
+    tools_menu.add_command(label="Program",
+                           command=get_vt_distribution)
+    tools_menu.add_command(label="Read",
+                           command=get_vt_distribution)
     tools_menu.add_command(label="VT distribution",
                            command=get_vt_distribution)
     tools_menu.add_command(

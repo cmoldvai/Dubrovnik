@@ -1,17 +1,17 @@
 import os
+import json
 # import sys
-# import json
 # import time
 from tkinter import *
 from tkinter import ttk
 from dubLibs import boardcom
-from dubLibs import dpm_lib
+from dubLibs import dpm
 from dubLibs import dubrovnik  # instead of "from dubLibs import Dubrovnik as du"
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import showerror, showwarning, showinfo
 
 SERCOM_DBG = False
-MEAS_TAB_DBG = False
+MEAS_TAB_DBG = True
 CFG_TAB_DBG = False
 
 
@@ -75,7 +75,7 @@ class SerComFrame(Frame):
         self.combo['values'] = self.portList
         self.combo.set(portList[0])
 
-    def connectPort(self, defaultPort=None, checkIsFlashPresent=True):
+    def connectPort(self, defaultPort=None, checkIsDpmPresent=True):
         if self.portStatus == 'disconnected':
             if defaultPort:
                 self.selPort = defaultPort         # updates class variable as well
@@ -88,10 +88,6 @@ class SerComFrame(Frame):
             self.btn2.config(text='Disconnect')  # change button label
             self.portStatus = 'connected'  # update connection status
             self.serParams = f'Connected: {self.comPort} ({self.comBaudrate},{self.comBytesize},{self.comParity},{self.comStopbits},{self.comXonXoff})'
-            if checkIsFlashPresent:  # allow this part to run only when enabled by func argument
-                if comm.isFlashPresent():
-                    pn = du.get_part_number(comm)
-                    serCom.serParams += '    Device: ' + pn
             stsBarComm.config(text=self.serParams)
 
         elif self.portStatus == 'connected':
@@ -128,45 +124,26 @@ class SerComFrame(Frame):
         serCom.selPort = ''
 
     def saveConfig(self):
-        pass
-        # cfg = {'autoConnect': serCom.chk_var.get(),
-        #        'lastUsedPort': serCom.selPort,
-        #        'eraseBlkSize': str(erase.blockSize.get()),
-        #        'eraseStartAddr': str(erase.startAddr.get()),
-        #        'eraseNumBlocks': str(erase.numBlocks.get()),
-        #        'progPattern': program.pattern.get(),
-        #        'progIncrement': program.increment.get(),
-        #        'progStartAddr': program.start_addr.get(),
-        #        'progLength': program.length.get(),
-        #        'readSpiMode': read.spiMode.get(),
-        #        'readStartAddr': read.startAddr.get(),
-        #        'readLength': read.readLength.get()
-        #        }
-        # with open(f'{self.dpmConfigPath}\dpm.cfg', 'w') as fh:
-        #     # print(cfg)  # TODO remove print when stable
-        #     json.dump(cfg, fh, indent=3)
+        cfg = {'autoConnect': serCom.chk_var.get(),
+               'lastUsedPort': serCom.selPort
+               }
+        with open(f'{self.dpmConfigPath}\dpm.cfg', 'w') as fh:
+            # print(cfg)  # TODO remove print when stable
+            json.dump(cfg, fh, indent=3)
 
     def loadConfig(self):
-        pass
-        # fname = f'{self.dpmConfigPath}\dpm.cfg'
-        # try:
-        #     fname = open(fname, 'r')
-        #     cfg = json.load(fname)  # get configuration from .cfg file
-        #     serCom.autoConnect = cfg['autoConnect']  # get autoConnect config
-        #     serCom.chk_var.set(serCom.autoConnect)   # ...set checkbox
-        #     serCom.selPort = cfg['lastUsedPort']     # get last used port
-        #     serCom.lastUsedPort = serCom.selPort     # ...set it
-        #     program.pattern.set(cfg['progPattern'])
-        #     program.increment.set(cfg['progIncrement'])
-        #     program.start_addr.set(cfg['progStartAddr'])
-        #     program.length.set(cfg['progLength'])
-        #     read.spiMode.set(cfg['readSpiMode'])
-        #     read.startAddr.set(cfg['readStartAddr'])
-        #     read.readLength.set(cfg['readLength'])
-        #     fname.close()
-        # except FileNotFoundError:
-        #     self.loadDefaultSettings()
-        #     self.saveConfig()
+        fname = f'{self.dpmConfigPath}\dpm.cfg'
+        try:
+            fname = open(fname, 'r')
+            cfg = json.load(fname)  # get configuration from .cfg file
+            serCom.autoConnect = cfg['autoConnect']  # get autoConnect config
+            serCom.chk_var.set(serCom.autoConnect)   # ...set checkbox
+            serCom.selPort = cfg['lastUsedPort']     # get last used port
+            serCom.lastUsedPort = serCom.selPort     # ...set it
+            fname.close()
+        except FileNotFoundError:
+            self.loadDefaultSettings()
+            self.saveConfig()
 
     def testSerComm(self):
         serParams = '%s, baud=%d, bytes=%1d,\nparity=%s, stop=%1d, protocol=%s' \
@@ -186,9 +163,8 @@ class MeasurementFrame(Frame):
         self.current = StringVar()
         self.power = StringVar()
         self.comm = None
-        self.buildFrame()
 
-        self.read_test = 'a'
+        self.buildFrame()
 
     def buildFrame(self):
         lbl1_vbus = Label(self, text='Vbus')
@@ -225,85 +201,44 @@ class MeasurementFrame(Frame):
         self.power.set('0')
 
         self.btn_start_meas = Button(
-            self, text='Start', width=10, command=self.openFile)
+            self, text='Start', width=10, command=self.displayMeas)
         self.btn_start_meas.grid(
             row=4, column=1, padx=10, pady=10, sticky=EW)
 
         if self.DEBUG:
-            self.test_btn = Button(self, text='Read test',
-                                   width=10, command=self.testReadDevice)
+            self.test_btn = Button(self, text='Read Registers',
+                                   width=10, command=self.readRegisters)
             self.test_btn.grid(row=6, column=0, padx=5, pady=10, columnspan=1)
             self.test_lbl = Label(
                 self, text="Debug message:", anchor=W, justify='left')
             self.test_lbl.grid(row=6, column=1, padx=5,
                                pady=10, sticky=EW, columnspan=3)
 
-    def testReadDevice(self):
-        print('Read Test')
-        self.comm.send('rr 0')
-        resp = self.comm.response()
-        testParams = self.get_states()
-        testParams.append(resp)
-        self.test_lbl.config(text=testParams)
+    def displayMeas(self):
+        v_b = dpm.read_bus_voltage()
+        v_sh = dpm.read_shunt_voltage()
+        # i = dpm.read_current()
+        # p = dpm.read_power()
+        self.vbus.set(v_b)
+        self.vshunt.set(v_sh)
+        # self.current.set(i)
+        # self.power.set(p)
 
-    def get_states(self):
-        global vbus
-        global vshunt
-        global current
-        global power
-        # global comm
-        vbus = float(self.vbus.get())
-        vshunt = float(self.vshunt.get())
-        # endAddr = startAddr + dataLen
-        current = self.current.get()
-        power = self.power.get()
-        print(vbus, vshunt, current, power)
-        return [vbus, vshunt, current, power]
+    def readRegisters(self):
+        regVals = dpm.readRegisters()
+        self.test_lbl.config(text=regVals)
 
-    def grayOutEntry(self):
-        if self.progModeVar.get() == 'file':
-            self.ent1_prog.config(state=DISABLED)
-            self.ent2_prog.config(state=DISABLED)
-            self.ent4_prog.config(state=DISABLED)
-            self.btn_openFile.config(state=NORMAL)
-        else:
-            self.ent1_prog.config(state=NORMAL)
-            self.ent2_prog.config(state=NORMAL)
-            self.ent4_prog.config(state=NORMAL)
-            self.btn_openFile.config(state=DISABLED)
-
-    def singleMeas(self):
-        pass
-        # serCom.checkConnection()  # check if board is connected
-        # self.get_states()
-        # if self.progModeVar.get() == 'pattern':
-        #     print(
-        #         f'startAddr: {startAddr:X}, dataLen: {dataLen:x}, pattn: {pattn}, incr: {incr}')
-        #     print('Programming...')
-        #     t_prog = du.page_program(
-        #         self.comm, startAddr, dataLen, pattn, incr)
-
-        # else:   # if programming a content of a file
-        #     dsize = len(self.progData)
-        #     du.write_buf_write(comm, self.progData, dsize)
-        #     t_prog = du.data_program(comm, self.progData, startAddr)
-        # prog_time = du.time_conv_from_usec(t_prog)
-        # print(f'DONE. Effective programming time: {prog_time}')
-
-    def progVerify(self):
-        pass
-
-    def openFile(self):
-        filename = askopenfilename(title='Select File to Program', initialdir=os.getcwd(
-        ), filetypes=(('All files', '*.*'), ('Binary files', '*.bin'), ('Hex files', '*.hex')))
-        print(filename)
-        fnameParts = os.path.splitext(filename)
-        extension = fnameParts[-1]
-        if extension.lower() == '.bin':
-            with open(filename, 'rb') as f:
-                # self.progData = bytes(f.read(), 'utf-8')
-                self.progData = f.read()
-                # print(self.progData)
+    # def grayOutEntry(self):
+    #     if self.progModeVar.get() == 'file':
+    #         self.ent1_prog.config(state=DISABLED)
+    #         self.ent2_prog.config(state=DISABLED)
+    #         self.ent4_prog.config(state=DISABLED)
+    #         self.btn_openFile.config(state=NORMAL)
+    #     else:
+    #         self.ent1_prog.config(state=NORMAL)
+    #         self.ent2_prog.config(state=NORMAL)
+    #         self.ent4_prog.config(state=NORMAL)
+    #         self.btn_openFile.config(state=DISABLED)
 
 
 class ConfigFrame(Frame):
@@ -316,6 +251,7 @@ class ConfigFrame(Frame):
         self.vshunt = StringVar()
         self.current = StringVar()
         self.power = StringVar()
+        self.rshunt = StringVar()
         self.comm = None
         self.chk_var = IntVar()
         self.buildFrame()
@@ -332,14 +268,21 @@ class ConfigFrame(Frame):
         adc_conv_mode = ['something', 'trig vbus',
                          'trig vshunt', 'cont vbus', 'cont vshunt', 'etc']
 
-        lbl01 = Label(self, text='Conv. Time')
-        lbl01.grid(row=0, column=1, padx=5, pady=5, sticky=EW)
+        # create widgets
+        Label(self, text='Conv. Time').grid(
+            row=0, column=1, padx=5, pady=5, sticky=EW)
 
-        lbl02 = Label(self, text='Range')
-        lbl02.grid(row=0, column=2, padx=5, pady=5, sticky=EW)
+        Label(self, text='Range').grid(
+            row=0, column=2, padx=5, pady=5, sticky=EW)
 
-        lbl2 = Label(self, text='Vbus')
-        lbl2.grid(row=1, column=0, padx=5, pady=5, sticky=E)
+        Label(self, text='Vbus').grid(
+            row=1, column=0, padx=5, pady=5, sticky=E)
+
+        Label(self, text='Vshunt').grid(
+            row=2, column=0, padx=5, pady=5, sticky=E)
+
+        Label(self, text='Mode').grid(
+            row=3, column=0, padx=5, pady=5, sticky=E)
 
         self.sh_conv_time_cb = ttk.Combobox(
             self, width=8, values=adc_conv_time)
@@ -351,9 +294,6 @@ class ConfigFrame(Frame):
         self.bus_vrange_cb.grid(row=1, column=2, padx=20, sticky="E")
         self.bus_vrange_cb.set(bus_vrange[1])
 
-        lbl3 = Label(self, text='Vshunt')
-        lbl3.grid(row=2, column=0, padx=5, pady=5, sticky=E)
-
         self.bus_conv_time_cb = ttk.Combobox(
             self, width=8, values=adc_conv_time)
         self.bus_conv_time_cb.grid(row=2, column=1, padx=20, sticky="E")
@@ -364,22 +304,28 @@ class ConfigFrame(Frame):
         self.sh_vrange_cb.grid(row=2, column=2, padx=20, sticky="E")
         self.sh_vrange_cb.set(sh_vrange[0])
 
-        lbl4 = Label(self, text='Mode')
-        lbl4.grid(row=3, column=0, padx=5, pady=5, sticky=E)
-
         self.sh_conv_mode_cb = ttk.Combobox(
-            self, width=8, values=adc_conv_mode)
+            self, width=8, values=adc_conv_mode, justify='center')
         self.sh_conv_mode_cb.grid(
-            row=3, column=1, padx=20, pady=10, sticky="EW")
+            row=3, column=1, columnspan=2, padx=20, pady=10, sticky="EW")
         self.sh_conv_mode_cb.set(adc_conv_mode[1])
 
+        Label(self, text='Rshunt Value').grid(
+            row=4, column=0, padx=5, pady=5, sticky=E)
+        self.ent_rshunt = Entry(self, justify=RIGHT, textvariable=self.rshunt)
+        self.ent_rshunt.grid(row=4, column=1, columnspan=2,
+                             padx=20, pady=10, sticky='WE')
+        Label(self, text='Ohm', justify=LEFT).grid(
+            row=4, column=3, pady=5, sticky=W)
+        self.rshunt.set('1.0')
+
         chk0 = Checkbutton(self, text='Vbus', variable=self.chk_var)
-        chk0.grid(row=4, column=0)
+        chk0.grid(row=5, column=0)
 
         self.btn_apply = Button(
-            self, text='Apply', width=10, command=self.testReadDevice)
+            self, text='Apply', width=10, command=self.setDpmParams)
         self.btn_apply.grid(
-            row=5, column=1, padx=10, pady=10, sticky=EW)
+            row=6, column=1, padx=10, pady=10, sticky=EW)
 
         if self.DEBUG:
             self.test_btn = Button(self, text='Read test',
@@ -390,13 +336,17 @@ class ConfigFrame(Frame):
             self.test_lbl.grid(row=6, column=2, padx=5,
                                pady=20, sticky=EW, columnspan=3)
 
-    def testReadDevice(self):
-        print('Read Test')
-        self.comm.send('rr 0')
-        resp = self.comm.response()
-        testParams = self.get_states()
-        testParams.append(resp)
-        self.test_lbl.config(text=testParams)
+    def setDpmParams(self):
+        # read parameters from the GUI
+        brng = self.bus_vrange_cb.current()
+        pg = self.sh_vrange_cb.current()
+        badc = self.sh_conv_time_cb.current()
+        sadc = self.bus_conv_time_cb.current()
+        mode = self.sh_conv_mode_cb.current()
+        rsh_val = self.ent_rshunt.get()
+        # program DPM registers with values set in GUI
+        dpm.set_config(brng, pg, badc, sadc, mode)
+        dpm.set_rshunt_value(float(rsh_val))
 
 
 if __name__ == "__main__":
@@ -418,10 +368,10 @@ if __name__ == "__main__":
     root = Tk()
     root.title('Digital Power Monitoring (DPM) Dashboard App')
 
-    comm = boardcom.BoardComm()   # create an instance of class Comm
-    du = dubrovnik.Dubrovnik()
+    cm = boardcom.BoardComm()   # create an instance of class Comm
+    dpm = dpm.DpmEK(cm)
 
-    portList = comm.findPorts()
+    portList = cm.findPorts()
     comport = portList[0]
 
     # TODO Eventually migrate to a format where MainWindow is in itw own class
@@ -455,7 +405,7 @@ if __name__ == "__main__":
         serCom.config(width=350, height=serComFrm_height, bd=2, relief=GROOVE)
     serCom.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
     serCom.combo.set(portList[0])
-    serCom.comm = comm
+    serCom.comm = cm
 
 # *******************************
 # ****** Measurement Tab ********
@@ -469,7 +419,7 @@ if __name__ == "__main__":
     else:
         measTab.config(width=580, height=dpmFrm_height, bd=2, relief=FLAT)
     measTab.grid(row=2, column=0, padx=10, pady=4, sticky=NW)
-    measTab.comm = comm   # initializeing self.com in DpmMain class
+    measTab.comm = cm   # initializeing self.com in DpmMain class
 
 # ******************************
 # ****** DPM Config Tab ********
@@ -483,7 +433,7 @@ if __name__ == "__main__":
     else:
         measTab.config(width=580, height=dpmFrm_height, bd=2, relief=FLAT)
     measTab.grid(row=2, column=0, padx=10, pady=4, sticky=NW)
-    measTab.comm = comm   # initializeing self.com in DpmMain class
+    measTab.comm = cm   # initializeing self.com in DpmMain class
 
 # ***************************
 # ****** Status Bar *********
@@ -532,20 +482,11 @@ if __name__ == "__main__":
             if serCom.lastUsedPort in portList:  # if last used port is in the portList
                 # connect to that port
                 serCom.connectPort(serCom.lastUsedPort,
-                                   checkIsFlashPresent=False)
+                                   checkIsDpmPresent=False)
         else:
             # otherwise connect to the first in the list
-            serCom.connectPort(portList[0], checkIsFlashPresent=False)
+            serCom.connectPort(portList[0], checkIsDpmPresent=False)
     # If not autoconnect then do not connect to anything
-
-        # * At this point we are connected to the UART chip on Dubrovnik, but not yet
-        # * to the MCU. It may require a manual RESET to boot.
-        resp = comm.connectToMCU()
-        # print(resp)
-
-        if comm.isFlashPresent() == 0:
-            showwarning(
-                'Warning', 'No flash device detected\nInstall a device and RESET the board')
 
     stsBarComm.config(text=serCom.serParams)
 
