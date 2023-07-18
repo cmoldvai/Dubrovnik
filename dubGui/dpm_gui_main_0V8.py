@@ -7,8 +7,8 @@ from dubLibs import boardcom
 from dubLibs import dpm
 
 SERCOM_DBG = False
-MEAS_TAB_DBG = False
-CFG_TAB_DBG = False
+MEAS_TAB_DBG = True
+CFG_TAB_DBG = True
 
 
 class SerComFrame(Frame):
@@ -190,29 +190,29 @@ class MeasurementFrame(Frame):
         self.buildFrame()
 
     def buildFrame(self):
-        # ROW 1. Labels for: shunt voltage, measurement value and unit
-        Label(self, text='Vshunt').grid(
-            row=0, column=0, padx=5, pady=5, sticky=E)
-        self.vshunt_lbl = Label(self, text="0", relief='sunken', width=20,
-                                anchor=E, fg='black', bg='#f8f8f8', font=('Calibri', 12))
-        self.vshunt_lbl.grid(row=0, column=1, padx=5, pady=10, sticky=EW)
-        Label(self, text='mV').grid(row=0, column=2, padx=10, pady=5, sticky=W)
-
-        # ROW 2. Labels for: bus voltage, measurement value  and unit
+        # ROW 1. Labels for: bus voltage, measurement value and unit
         Label(self, text='Vbus').grid(
-            row=1, column=0, padx=5, pady=5, sticky=E)
+            row=0, column=0, padx=5, pady=5, sticky=E)
 
         self.vbus_lbl = Label(self, text="0", relief='sunken', width=20,
                               anchor=E, fg='black', bg='#f8f8f8', font=('Calibri', 12))
-        self.vbus_lbl.grid(row=1, column=1, padx=5,
+        self.vbus_lbl.grid(row=0, column=1, padx=5,
                            pady=10, sticky=EW)
-        Label(self, text='V').grid(row=1, column=2, padx=10, pady=5, sticky=W)
+        Label(self, text='V').grid(row=0, column=2, padx=10, pady=5, sticky=W)
+
+        # ROW 2. Labels for: shunt voltage, measurement value  and unit
+        Label(self, text='Vshunt').grid(
+            row=1, column=0, padx=5, pady=5, sticky=E)
+        self.vshunt_lbl = Label(self, text="0", relief='sunken', width=20,
+                                anchor=E, fg='black', bg='#f8f8f8', font=('Calibri', 12))
+        self.vshunt_lbl.grid(row=1, column=1, padx=5, pady=10, sticky=EW)
+        Label(self, text='mV').grid(row=1, column=2, padx=10, pady=5, sticky=W)
 
         # ROW 3. Labels for: current, value and unit
         Label(self, text='Current').grid(
             row=2, column=0, padx=5, pady=5, sticky=E)
         self.i_lbl = Label(self, text="0", relief='sunken', width=20,
-                           anchor=E, fg='black', bg='#f8f8f8', font=('Calibri', 12))
+                           anchor=E, bg='#f8f8f8', font=('Calibri', 12))
         self.i_lbl.grid(row=2, column=1, padx=5, pady=10, sticky=EW)
         Label(self, text='A').grid(row=2, column=2, padx=10, pady=5, sticky=W)
 
@@ -220,7 +220,7 @@ class MeasurementFrame(Frame):
         Label(self, text='Power').grid(
             row=3, column=0, padx=5, pady=5, sticky=E)
         self.p_lbl = Label(self, text="0", relief='sunken', width=20,
-                           anchor=E, fg='black', bg='#f8f8f8', font=('Calibri', 12))
+                           anchor=E, bg='#f8f8f8', font=('Calibri', 12))
         self.p_lbl.grid(row=3, column=1, padx=5, pady=10, sticky=EW)
         Label(self, text='mW').grid(row=3, column=2, padx=10, pady=5, sticky=W)
 
@@ -231,10 +231,10 @@ class MeasurementFrame(Frame):
 
         if self.DEBUG:
             self.test_btn = Button(self, text='Reg Values',
-                                   width=10, command=self.test_func)
+                                   width=10, command=self.testRead)
             self.test_btn.grid(row=6, column=0, padx=5, pady=10, columnspan=1)
             self.test_lbl = Label(
-                self, text="debug message", anchor=W, justify='center')
+                self, text="Debug message:", anchor=W, justify='left')
             self.test_lbl.grid(row=6, column=1, padx=5,
                                pady=10, sticky=EW, columnspan=3)
             # Print parameters available for a Tkinter Label
@@ -245,82 +245,49 @@ class MeasurementFrame(Frame):
                                  width=40, font=('Calibri', 11))
 
     def start_stop(self):
-
-        if dpm.mode == 0 or dpm.mode == 4:
-            # Power Down, ADC Off
-            self.get_a_measurement(0, 0, 0, 0)
-            self.meas_in_progress = False
-            self.btn_start_meas.config(text='START', fg='black')
-
-        elif dpm.mode == 1:
-            # Vshunt Triggered
-            self.get_a_measurement(1, 0, 1, 0)
-            self.meas_in_progress = False
-            self.btn_start_meas.config(text='START', fg='black')
-
-        elif dpm.mode == 2:
-            # Vbus Triggered
-            self.get_a_measurement(0, 1, 0, 0)
-            self.meas_in_progress = False
-            self.btn_start_meas.config(text='START', fg='black')
-
-        elif dpm.mode == 3:
-            # Vshunt+Vbus Triggered
-            self.get_a_measurement(1, 1, 1, 1)
-            self.meas_in_progress = False
-            self.btn_start_meas.config(text='START', fg='black')
-
+        # Determine if Start button was pressed
+        if dpm.mode >= 1 and dpm.mode <= 3:
+            # Triggered
+            self.get_a_measurement()
         else:
             if not self.meas_in_progress:
                 self.meas_in_progress = True
                 self.btn_start_meas.config(
                     text='STOP', fg='red')
-                self.get_a_measurement(1, 1, 1, 1)
+                self.get_a_measurement()
                 self.update_measurement()
             else:
                 self.meas_in_progress = False
                 self.btn_start_meas.config(text='START', fg='black')
 
-    # Interrupt at periodic intervals
     def update_measurement(self):
         if self.meas_in_progress:
-            self.get_a_measurement(1, 1, 1, 1)
+            self.get_a_measurement()
             root.after(500, self.update_measurement)
 
-    # TODO may add parameters which measurements to take
-    def get_a_measurement(self, get_vs, get_vb, get_i, get_p):
+    def get_a_measurement(self):
+        v_b = dpm.read_bus_voltage()
+        if v_b > dpm.vbus_range_tbl[dpm.brng]:
+            self.vbus_lbl.config(fg='red')
+        else:
+            self.vbus_lbl.config(fg='black')
+        self.vbus_lbl['text'] = f'{v_b:0.3f}'
 
-        # TODO To clear the conversion ready bit must write to config reg or read power
-        # This can be done multiple places, for now I put it here
-        # May be put into the start_stop function
-        dpm.set_config()  # Clear CNVR Conversion Ready (Bit 1)
-        # dpm.set_calibration()  # this is probably not needed. Only when updating config regs
+        v_sh = dpm.read_shunt_voltage()
+        # TODO get the limits from the Config GUI (or DpmEK attribute?)
+        if v_sh > dpm.vshunt_range_tbl[dpm.pg]:
+            self.vshunt_lbl.config(fg='red')
+        else:
+            self.vshunt_lbl.config(fg='black')
+        self.vshunt_lbl['text'] = f'{1e3*v_sh:0.3f}'
 
-        if get_vs:
-            v_sh = dpm.read_shunt_voltage()
-            if v_sh > dpm.vshunt_range_tbl[dpm.pg]:
-                self.vshunt_lbl.config(fg='red')
-            else:
-                self.vshunt_lbl.config(fg='black')
-            self.vshunt_lbl['text'] = f'{1e3*v_sh:0.3f}'
+        cur = dpm.read_current()
+        self.i_lbl.config(text=f'{cur:0.3f}')
 
-        if get_vb:
-            v_b = dpm.read_bus_voltage()
-            if v_b > dpm.vbus_range_tbl[dpm.brng]:
-                self.vbus_lbl.config(fg='red')
-            else:
-                self.vbus_lbl.config(fg='black')
-            self.vbus_lbl['text'] = f'{v_b:0.3f}'
+        pwr = dpm.read_power()
+        self.p_lbl.config(text=f'{pwr:0.3f}')
 
-        if get_i:
-            cur = dpm.read_current()
-            self.i_lbl.config(text=f'{cur:0.3f}')
-
-        if get_p:
-            pwr = dpm.read_power()
-            self.p_lbl.config(text=f'{pwr:0.3f}')
-
-    def test_func(self):
+    def testRead(self):
         vals = dpm.readRegisters()
         self.test_lbl.config(text=vals)
         # print(f'vbus = {dpm.read_bus_voltage():.3f}V ', end='')
@@ -328,6 +295,14 @@ class MeasurementFrame(Frame):
         # print(f'current = {dpm.read_current():.3f}A ', end='')
         # print(f'power = {dpm.read_power():.2f}mW ')
         # print(dpm.brng, dpm.pg, dpm.badc, dpm.sadc, dpm.mode, dpm.rshunt)
+
+    # def grayOutEntry(self):
+    #     if self.progModeVar.get() == 'file':
+    #         self.ent1_prog.config(state=DISABLED)
+    #         self.btn_openFile.config(state=NORMAL)
+    #     else:
+    #         self.ent1_prog.config(state=NORMAL)
+    #         self.btn_openFile.config(state=DISABLED)
 
 
 class ConfigFrame(Frame):
@@ -374,7 +349,7 @@ class ConfigFrame(Frame):
         self.bus_conv_time_cb.set(self.adc_conv_time[3])
 
         self.bus_vrange_cb = ttk.Combobox(
-            self, width=8, values=self.bus_vrange, postcommand=self.updtRegs)
+            self, width=8, values=self.bus_vrange)
         self.bus_vrange_cb.grid(row=1, column=2, padx=20, sticky="E")
         self.bus_vrange_cb.set(self.bus_vrange[1])
 
@@ -409,13 +384,11 @@ class ConfigFrame(Frame):
 
         Label(self, text='Config Reg').grid(
             row=5, column=0, padx=5, pady=5, sticky=E)
-        self.cfg_reg_lbl = Label(
-            self, text='', anchor=W)
-        # self.cfg_reg_lbl = Label(
-        #     self, text="R BR PG ADC1 ADC2 MOD [FFFFh]", anchor=W, justify='center')
-        self.cfg_reg_lbl.grid(row=5, column=1, padx=20,
-                              pady=5, sticky=EW, columnspan=2)
-        self.cfg_reg_lbl.config(relief=GROOVE, width=24, font=('Calibri', 11))
+        self.cfgreg_lbl = Label(
+            self, text="R BR PG ADC1 ADC2 MOD [FFFFh]", anchor=W, justify='center')
+        self.cfgreg_lbl.grid(row=5, column=1, padx=20,
+                             pady=5, sticky=EW, columnspan=2)
+        self.cfgreg_lbl.config(relief=GROOVE, width=20, font=('Calibri', 12))
 
         self.btn_apply = Button(
             self, text='Apply', width=10, command=self.apply_dpm_config)
@@ -427,7 +400,7 @@ class ConfigFrame(Frame):
                                    width=10, command=self.testRead)
             self.test_btn.grid(row=7, column=0, padx=5, pady=20, columnspan=1)
             self.test_lbl = Label(
-                self, text="debug message", anchor=W)
+                self, text="Debug message", anchor=W, justify='left')
             self.test_lbl.grid(row=7, column=1, padx=5,
                                pady=30, sticky=EW, columnspan=3)
             self.test_lbl.config(relief='sunken', bg='#fff',
@@ -442,37 +415,6 @@ class ConfigFrame(Frame):
         dpm.mode = self.conv_mode_cb.current()
         dpm.rshunt = float(self.ent_rshunt.get())
         print(f'rshunt type: {type(dpm.rshunt)}, value:{dpm.rshunt}')
-
-        # TODO check this. Should it be here or in 'start_stop'?
-
-        measFrm.meas_in_progress = False
-        measFrm.btn_start_meas.config(text='START', fg='black')
-        # Actions to do depending on the value of the MODE BITS
-        if dpm.mode == 0 or dpm.mode == 4:
-            # Power Down, ADC OFF
-            measFrm.vshunt_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-            measFrm.vbus_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-            measFrm.i_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-            measFrm.p_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-
-        elif dpm.mode == 1 or dpm.mode == 5:
-            measFrm.vshunt_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-            measFrm.vbus_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-            measFrm.i_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-            measFrm.p_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-
-        elif dpm.mode == 2 or dpm.mode == 6:
-            measFrm.vshunt_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-            measFrm.vbus_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-            measFrm.i_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-            measFrm.p_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
-
-        else:
-            measFrm.vshunt_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-            measFrm.vbus_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-            measFrm.i_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-            measFrm.p_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
-
         # save values into file
         serCom.saveConfig()
         # b = f'0|{dpm.brng:02b}|{dpm.pg:02b}|{dpm.badc:04b}|{dpm.sadc:04b}|{dpm.mode:03b}'
@@ -480,15 +422,11 @@ class ConfigFrame(Frame):
         w = (dpm.brng << 13) | (dpm.pg << 11) | (
             dpm.badc << 7) | (dpm.sadc << 3) | dpm.mode
         msg = b + f' = {w:04X}h'
-        self.cfg_reg_lbl.config(text=msg)
+        self.cfgreg_lbl.config(text=msg)
         # program DPM registers with values set in GUI
         print(
             f'brng={dpm.brng}, pg={dpm.pg}, badc={dpm.badc}, sadc={dpm.sadc}, mode={dpm.mode},rval={dpm.rshunt}')
         dpm.set_config()
-        dpm.set_calibration()
-
-    def updtRegs(self):
-        print('selection made')
 
     def testRead(self):
         # print(dpm.readRegisters())  # prints the values of 10 registers

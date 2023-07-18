@@ -1,0 +1,33 @@
+import tkinter as tk
+
+class App:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Measurement")
+        self.measVal = 0
+        self.measVal_label = tk.Label(self.root, text="measVal: {}".format(self.measVal))
+        self.measVal_label.pack()
+        self.button = tk.Button(self.root, text="START", command=self.start_stop)
+        self.button.pack()
+        self.active_counter = False
+
+    def start_stop(self):
+        if not self.active_counter:
+            self.active_counter = True
+            self.button.config(text="STOP")
+            self.update_label()
+        else:
+            self.active_counter = False
+            self.button.config(text="START")
+
+    def update_label(self):
+        if self.active_counter:
+            # read from external variable measVal
+            # update label with measVal
+            # call this function again after 1000ms
+            self.measVal += 1
+            self.measVal_label.config(text="measVal: {}".format(self.measVal))
+            self.root.after(1000, self.update_label)
+
+app = App()
+app.root.mainloop()

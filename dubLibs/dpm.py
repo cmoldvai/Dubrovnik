@@ -5,35 +5,36 @@ from dubLibs import boardcom
 class DpmEK():
     def __init__(self, comm):
         self.comm = comm
-        self.brng = None
-        self.pg = None
-        self.badc = None
-        self.sadc = None
-        self.mode = None
-        self.rshunt = None
+        # Reset values (default)
+        self.brng = 2  # don't use 3, to avoid having duplicate '60V' in GUI
+        self.pg = 3
+        self.badc = 3
+        self.sadc = 3
+        self.mode = 7
+        # Board Dependent
+        self.rshunt = 0.1
 
-        self.vbus_range_tab = [16, 32, 60, 60]
+        self.vbus_range_tbl = [16, 32, 60, 60]
         # Table converting config register BRNG field value to bus voltage range.
         # The field value is an index to the table
 
-        self.vshunt_range_tab = [0.04, 0.08, 0.16, 0.32]
+        self.vshunt_range_tbl = [0.04, 0.08, 0.16, 0.32]
         # Table converting config register PG field value to shunt voltage range.
         # The field value is an index to the table.
 
-        self.conv_time_us_tab = [72, 132, 258, 508, 72, 132, 258, 508,
+        self.conv_time_us_tbl = [72, 132, 258, 508, 72, 132, 258, 508,
                                  508, 1010, 2010, 4010, 8010, 16010, 32010, 64010]
         # Table converting config register BADC and SADC field values to sample conversion times.
         # The field value is an index to the table. The table values are expressed in microseconds
 
-    def set_config(self, brng, pg, badc, sadc, mode):
+    def set_config(self):
         ''' This function sets the DPM configuration register. It generates the config register value from
         the values of its fields: BRNG, PG, BADC, SADC and MODE. Then it writes the generated value
         into the config register. The config register field values are the arguments to the function.'''
-        w = (brng << 13) | (pg << 11) | (badc << 7) | (sadc << 3) | mode
+        w = (self.brng << 13) | (self.pg << 11) | (
+            self.badc << 7) | (self.sadc << 3) | self.mode
         # print(f'{w:x}')
         self.comm.send(f'wr 0 {w:x}')
-        self.brng = brng
-        self.pg = pg
 
     def set_calibration(self):
         ''' This function sets the DPM calibration register. It calculates the calibration register
@@ -51,7 +52,7 @@ class DpmEK():
         (0.04096 * 32768) / VshuntFS =
         1342.177 / VshuntFs
         '''
-        vshuntfs = self.vshunt_range_tab[self.pg]
+        vshuntfs = self.vshunt_range_tbl[self.pg]
         w = int(1342.177 / vshuntfs)
         self.comm.send(f'wr 5 {w:x}')
 
@@ -87,9 +88,9 @@ class DpmEK():
         w = minv_bitfield_value | (maxv_bitfield_value << 8)
         self.comm.send(f'wr 7 {w:x}')
 
-    def set_rshunt_value(self, rshunt):
-        ''' '''  # TODO add comments
-        self.rshunt = rshunt
+    # def set_rshunt_value(self, rshunt):
+    #     ''' '''  # TODO add comments
+    #     self.rshunt = rshunt
 
     def read_bus_voltage(self):
         ''' This function reads the bus voltage register and calculates the bus voltage
@@ -142,7 +143,7 @@ class DpmEK():
         - The value of the PG field of the config register representing the shunt voltage
         range (a.k.a. Vshunt full scale or VshuntFS)
         - The shunt resistor's resistance in Ohms.'''
-        vshuntfs = self.vshunt_range_tab[self.pg]
+        vshuntfs = self.vshunt_range_tbl[self.pg]
         self.comm.send('rr 4')
         resp = self.comm.response(
             removeCmd=True, returnAsList=False)
@@ -163,14 +164,15 @@ class DpmEK():
         - The value of the BRNG field of the config register representing the bus voltage
         range (a.k.a. Vbus full scale or VbusFS)
         - The shunt resistor's resistance in Ohms.'''
-        vshuntfs = self.vshunt_range_tab[self.pg]
+        vshuntfs = self.vshunt_range_tbl[self.pg]
         self.comm.send('rr 3')
         resp = self.comm.response(removeCmd=True, returnAsList=False)
         w = int(resp, 16)
         currentfs = vshuntfs / self.rshunt
         currentlsb = currentfs / 32768
         powerlsb = currentlsb * 0.004  # Vbus lsb = 4mV
-        power = w * powerlsb * 5000
+        # power = w * powerlsb * 5000
+        power = w * powerlsb * 5000000  # TEST to get large numbers in GUI
         if self.brng >= 2:  # implying VbusFS=60V
             power = power * 2
         return power
@@ -196,13 +198,6 @@ class DpmEK():
         w = int(resp, 16) & 0xf
         return w
 
-    # def get_deviceID(self):
-    #     ''' '''
-    #     self.comm.send('rr 0')
-    #     resp = self.comm.response(
-    #         removeCmd=True, returnAsList=False)
-    #     return resp
-
 
 if __name__ == '__main__':
 
@@ -210,19 +205,15 @@ if __name__ == '__main__':
     connectedPort = cm.find_and_connect(echo=1)
     dpm = DpmEK(cm)
 
-    # dpm_ek_rshunt = 0.1 # Eval Kit shunt resistor value = 0.1Ohm
-    dpm_ek_rshunt = 1.0  # Eval Kit shunt resistor value = 0.1Ohm
+    dpm.brng = 0x0  # 16V
+    dpm.pg = 0x3  # 320mV
+    dpm.badc = 0x9  # 1.01ms
+    dpm.sadc = 0xf  # 64.01ms
+    dpm.mode = 0x7  # shunt & bus continuous
+    dpm.rshunt = 1.0
 
-    config_brng = 0x0  # 16V
-    config_pg = 0x2  # 160mV
-    config_badc = 0x9  # 1.01ms
-    config_sadc = 0xf  # 64.01ms
-    config_mode = 0x7  # shunt & bus continuous
-
-    dpm.set_config(config_brng, config_pg,
-                   config_badc, config_sadc, config_mode)
+    dpm.set_config()
     dpm.set_calibration()
-    dpm.set_rshunt_value(dpm_ek_rshunt)
     dpm.set_vshunt_threshold(0.02, 0.06)
     dpm.set_vbus_threshold(2.0, 4.0)
 
@@ -232,14 +223,19 @@ if __name__ == '__main__':
     t_start = time.time()
 
     while t_elapsed < 60.0:
-        print(
-            f"vbus = {dpm.read_bus_voltage():.4f}V ", end="")
-        print(
-            f"vshunt = {dpm.read_shunt_voltage():.4f}V ", end="")
-        print(
-            f"current = {dpm.read_current():.4f}A ", end="")
-        print(
-            f"power = {dpm.read_power():.4f}W ", end="")
+        print(f'vbus = {dpm.read_bus_voltage():.3f}V ', end='')
+        print(f'vshunt = {dpm.read_shunt_voltage():.3f}V ', end='')
+        print(f'current = {dpm.read_current():.3f}A ', end='')
+        print(f'power = {dpm.read_power():.2f}mW ', end='')
+
+        # print(
+        #     f"vbus = {dpm.read_bus_voltage():.3f}V ", end="")
+        # print(
+        #     f"vshunt = {dpm.read_shunt_voltage():.3f}V ", end="")
+        # print(
+        #     f"current = {dpm.read_current():.3f}A ", end="")
+        # print(
+        #     f"power = {dpm.read_power():.2f}mW ", end="")
         ints = dpm.get_threshold_int_status()
         print(f"interrupt status = {ints:04b}")
         if ints != 0:

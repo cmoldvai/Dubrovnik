@@ -84,14 +84,14 @@ class SerComFrame(Frame):
             self.btn2.config(text='Disconnect')  # change button label
             self.portStatus = 'connected'  # update connection status
             self.serParams = f'Connected: {self.comPort} ({self.comBaudrate},{self.comBytesize},{self.comParity},{self.comStopbits},{self.comXonXoff})'
-            stsBarFrm.config(text=self.serParams)
+            stsBar.config(text=self.serParams)
 
         elif self.portStatus == 'connected':
             # if connected, disconnect from the current port
             self.disconnectPort(self.selPort)
             self.btn2['text'] = 'Connect'  # update button label
             self.portStatus = 'disconnected'  # update connection status
-            stsBarFrm.config(text='Disconnected')
+            stsBar.config(text='Disconnected')
         else:
             print('No such port. Try again!!!')
         self.saveConfig()
@@ -99,7 +99,7 @@ class SerComFrame(Frame):
     def disconnectPort(self, selPort):
         self.comm.disconnect(selPort)
         # print(f"Port: {selPort} disconnected")
-        stsBarFrm.config(text='No COM port found!')
+        stsBar.config(text='No COM port found!')
 
     def checkConnection(self):
         if self.portStatus == 'disconnected':
@@ -116,8 +116,8 @@ class SerComFrame(Frame):
         self.comXonXoff = self.portHandle.xonxoff
 
     def loadDefaultSettings(self):
-        serCom.chk_var.set(0)
-        serCom.selPort = ''
+        comFrm.chk_var.set(0)
+        comFrm.selPort = ''
         dpm.brng = 2
         dpm.pg = 3
         dpm.badc = 3
@@ -128,8 +128,8 @@ class SerComFrame(Frame):
         self.set_gui_config_params()
 
     def saveConfig(self):
-        cfg = {'autoConnect': serCom.chk_var.get(),
-               'lastUsedPort': serCom.selPort,
+        cfg = {'autoConnect': comFrm.chk_var.get(),
+               'lastUsedPort': comFrm.selPort,
                'vbus_range': dpm.brng,
                'vshunt_range': dpm.pg,
                'bus_conv_time': dpm.badc,
@@ -146,10 +146,10 @@ class SerComFrame(Frame):
         try:
             fname = open(fname, 'r')
             cfg = json.load(fname)  # get configuration from .cfg file
-            serCom.autoConnect = cfg['autoConnect']  # get autoConnect config
-            serCom.chk_var.set(serCom.autoConnect)   # ...set checkbox
-            serCom.selPort = cfg['lastUsedPort']     # get last used port
-            serCom.lastUsedPort = serCom.selPort     # ...set it
+            comFrm.autoConnect = cfg['autoConnect']  # get autoConnect config
+            comFrm.chk_var.set(comFrm.autoConnect)   # ...set checkbox
+            comFrm.selPort = cfg['lastUsedPort']     # get last used port
+            comFrm.lastUsedPort = comFrm.selPort     # ...set it
             # read saved config values and update dmp attributes
             dpm.brng = cfg['vbus_range']
             dpm.pg = cfg['vshunt_range']
@@ -474,7 +474,7 @@ class ConfigFrame(Frame):
             measFrm.p_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
 
         # save values into file
-        serCom.saveConfig()
+        comFrm.saveConfig()
         # b = f'0|{dpm.brng:02b}|{dpm.pg:02b}|{dpm.badc:04b}|{dpm.sadc:04b}|{dpm.mode:03b}'
         b = f'0 {dpm.brng:02b} {dpm.pg:02b} {dpm.badc:04b} {dpm.sadc:04b} {dpm.mode:03b}'
         w = (dpm.brng << 13) | (dpm.pg << 11) | (
@@ -530,32 +530,32 @@ if __name__ == "__main__":
 # ******************************************
 # ******             TABS           ********
 # ******************************************
-    tabControl = ttk.Notebook(root)
+    tabs = ttk.Notebook(root)
 
-    tab1 = ttk.Frame(tabControl)
-    tab2 = ttk.Frame(tabControl)
-    tab3 = ttk.Frame(tabControl)
+    tab1 = ttk.Frame(tabs)
+    tab2 = ttk.Frame(tabs)
+    tab3 = ttk.Frame(tabs)
 
-    tabControl.add(tab1, text='Measurements')
-    tabControl.add(tab2, text='DPM Configuration')
-    tabControl.add(tab3, text='Connection')
-    tabControl.grid(row=0, column=0, columnspan=3, padx=10, pady=5, sticky=EW)
+    tabs.add(tab1, text='Measurements')
+    tabs.add(tab2, text='DPM Configuration')
+    tabs.add(tab3, text='Connection')
+    tabs.grid(row=0, column=0, columnspan=3, padx=10, pady=5, sticky='')
 
 # *******************************************
 # ****** Serial Communications Tab ********
 # *******************************************
-    serCom = SerComFrame(tab3, DEBUG=SERCOM_DBG)  # invoking the class
+    comFrm = SerComFrame(tab3, DEBUG=SERCOM_DBG)  # invoking the class
     # serCom.pack(side=TOP, fill=BOTH)
-    serCom.grid_propagate(0)
+    comFrm.grid_propagate(0)
     serComFrm_height = 60
     if SERCOM_DBG:
-        serCom.config(width=350, height=serComFrm_height +
+        comFrm.config(width=350, height=serComFrm_height +
                       40, bd=4, relief=RIDGE)
     else:
-        serCom.config(width=350, height=serComFrm_height, bd=2, relief=GROOVE)
-    serCom.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
-    serCom.combo.set(portList[0])
-    serCom.comm = cm
+        comFrm.config(width=350, height=serComFrm_height, bd=2, relief=GROOVE)
+    comFrm.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
+    comFrm.combo.set(portList[0])
+    comFrm.comm = cm
 
 # *******************************
 # ****** Measurement Tab ********
@@ -589,12 +589,12 @@ if __name__ == "__main__":
 # ***************************
 # ****** Status Bar *********
 # ***************************
-    stsBarFrm = Label(root, text='Not connected', font=(
+    stsBar = Label(root, text='Not connected', font=(
         "Helvetica", 9), anchor=W, justify=LEFT, pady=2)
-    stsBarFrm.config(bd=1, relief=SUNKEN)
+    stsBar.config(bd=1, relief=SUNKEN)
     # stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
-    stsBarFrm.grid_propagate(0)
-    stsBarFrm.grid(row=4, column=0, padx=10, pady=5,
+    stsBar.grid_propagate(0)
+    stsBar.grid(row=4, column=0, padx=10, pady=5,
                    columnspan=3, sticky=EW)
 
     # ********** MENU ***********
@@ -603,10 +603,10 @@ if __name__ == "__main__":
 
     config_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Config", menu=config_menu)
-    config_menu.add_command(label="Load config", command=serCom.loadConfig)
-    config_menu.add_command(label="Store config", command=serCom.saveConfig)
+    config_menu.add_command(label="Load config", command=comFrm.loadConfig)
+    config_menu.add_command(label="Store config", command=comFrm.saveConfig)
     config_menu.add_command(label="Restore defaults",
-                            command=serCom.loadDefaultSettings)
+                            command=comFrm.loadDefaultSettings)
 
     help_menu = Menu(my_menu, tearoff=False)
     my_menu.add_cascade(label="Help", menu=help_menu)
@@ -615,21 +615,21 @@ if __name__ == "__main__":
     help_menu.add_command(label="About", command=showAbout)
 
     # ********** Load Configuration ***********
-    serCom.loadConfig()  # includes autoConnect and lastUsedPort
+    comFrm.loadConfig()  # includes autoConnect and lastUsedPort
 
     # * At this point we have a list of valid COM ports.
     # * Next step is to connect to one of them.
-    if serCom.autoConnect:  # if autoConnect set
+    if comFrm.autoConnect:  # if autoConnect set
         if len(portList) > 1:  # no need to check if ==0. boardcom.py already does
-            if serCom.lastUsedPort in portList:  # if last used port is in the portList
+            if comFrm.lastUsedPort in portList:  # if last used port is in the portList
                 # connect to that port
-                serCom.connectPort(serCom.lastUsedPort,
+                comFrm.connectPort(comFrm.lastUsedPort,
                                    checkIsDpmPresent=False)
         else:
             # otherwise connect to the first in the list
-            serCom.connectPort(portList[0], checkIsDpmPresent=False)
+            comFrm.connectPort(portList[0], checkIsDpmPresent=False)
     # If not autoconnect then do not connect to anything
 
-    stsBarFrm.config(text=serCom.serParams)
+    stsBar.config(text=comFrm.serParams)
 
     root.mainloop()
