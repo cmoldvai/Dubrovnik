@@ -22,7 +22,7 @@ class App(tb.Window):
         # * cosmo, flatly, journal, litera, lumen, minty, pulse, sandstone, united, yeti, morph, simplex, cerculean
         # Dark:
         # * solar, superhero, darkly, cyborg, vapor
-        super().__init__(themename='cosmo')  # ensures App(tk.Tk) works correctly
+        super().__init__(themename='darkly')  # ensures App(tk.Tk) works correctly
         self.title(title)
         self.geometry(f'{size[0]}x{size[1]}')
         self.minsize(size[0], size[1])

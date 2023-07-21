@@ -46,9 +46,9 @@ class DpmEK():
 
         CalRegval =
         0.04096 / (CurrentLSB * Rshunt) =
-        (0.04096 * ADCres) / (CurrentFS * Rshunt) = 
-        (0.04096 * ADCres * Rshunt) / (VshuntFS * Rshunt) =  
-        (0.04096 * ADCres) / VshuntFS = 
+        (0.04096 * ADCres) / (CurrentFS * Rshunt) =
+        (0.04096 * ADCres * Rshunt) / (VshuntFS * Rshunt) =
+        (0.04096 * ADCres) / VshuntFS =
         (0.04096 * 32768) / VshuntFS =
         1342.177 / VshuntFs
         '''
@@ -88,14 +88,10 @@ class DpmEK():
         w = minv_bitfield_value | (maxv_bitfield_value << 8)
         self.comm.send(f'wr 7 {w:x}')
 
-    # def set_rshunt_value(self, rshunt):
-    #     ''' '''  # TODO add comments
-    #     self.rshunt = rshunt
-
     def read_bus_voltage(self):
         ''' This function reads the bus voltage register and calculates the bus voltage
         It returns the bus voltage in volts (floating point value). It receives one argument,
-        the value of the BRNG fieled of the config register - it expresses the bus voltage 
+        the value of the BRNG fieled of the config register - it expresses the bus voltage
         range which is required for interpreting the bus voltage register value.'''
         self.comm.send('rr 2')
         resp = self.comm.response(removeCmd=True, returnAsList=False)
@@ -112,7 +108,7 @@ class DpmEK():
     def read_shunt_voltage(self):
         ''' This function reads the shunt voltage register and calculates the shunt voltage
         It returns the shunt voltage in volts (floating point value). It receives one argument,
-        the value of the PG fieled of the config register - it expresses the shunt voltage 
+        the value of the PG fieled of the config register - it expresses the shunt voltage
         range which is required for interpreting the shunt voltage register value.'''
         self.comm.send('rr 1')
         resp = self.comm.response(removeCmd=True, returnAsList=False)
@@ -189,7 +185,7 @@ class DpmEK():
     def get_threshold_int_status(self):
         ''' This function reads the interrupt status register and extracts the 4
         interrupt status bits. It returns an integer with these 4 interrupt bits:
-        Bit 0 (BMNW): 1 indicates bus voltage below minimum 	
+        Bit 0 (BMNW): 1 indicates bus voltage below minimum
         Bit 1 (BMXW): 1 indicates bus voltage above maximum
         Bit 2 (SMNW): 1 indicates shunt voltage below minimum
         Bit 3 (SMXW): 1 indicates shunt voltage above maximum'''
