@@ -426,7 +426,7 @@ class ConfigFrame(Frame):
         # program DPM registers with values set in GUI
         print(
             f'brng={dpm.brng}, pg={dpm.pg}, badc={dpm.badc}, sadc={dpm.sadc}, mode={dpm.mode},rval={dpm.rshunt}')
-        dpm.set_config()
+        dpm.prog_config_reg()
 
     def testRead(self):
         # print(dpm.readRegisters())  # prints the values of 10 registers

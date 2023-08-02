@@ -1,5 +1,6 @@
 import os
 import json
+# from tkinter.messagebox import showerror
 from tkinter.messagebox import showerror, showinfo
 from tkinter import *
 from tkinter import ttk
@@ -10,8 +11,155 @@ SERCOM_DBG = False
 MEAS_TAB_DBG = False
 CFG_TAB_DBG = False
 
+comFrm = None
+measFrm = None
+configFrm = None
+dp = None
+
+
+class App(Tk):
+    def __init__(self, title, size):
+        super().__init__()
+
+        global dp
+        self.title(title)
+        self.geometry(f'{size[0]}x{size[1]}')
+        self.minsize(size[0], size[1])
+
+        cm = boardcom.BoardComm()   # create an instance of class Comm
+        dp = dpm.DpmEK(cm)         # create an instance of class DpmEK
+
+        portList = cm.findPorts()
+
+    # ******************************************
+    # ******             TABS           ********
+    # ******************************************
+        tabs = ttk.Notebook(self)
+
+        tab1 = ttk.Frame(tabs)
+        tab2 = ttk.Frame(tabs)
+        tab3 = ttk.Frame(tabs)
+
+        tabs.add(tab1, text='Measurements')
+        tabs.add(tab2, text='DPM Configuration')
+        tabs.add(tab3, text='Connection')
+        tabs.grid(row=0, column=0, columnspan=3, padx=10, pady=5, sticky='')
+
+    # *******************************************
+    # ****** Serial Communications Tab ********
+    # *******************************************
+        global comFrm
+
+        comFrm = SerComFrame(tab3, DEBUG=SERCOM_DBG)  # invoking the class
+        serComFrm_height = 60
+        if SERCOM_DBG:
+            comFrm.config(width=350, height=serComFrm_height +
+                          40, bd=4, relief=RIDGE)
+        else:
+            comFrm.config(width=350, height=serComFrm_height,
+                          bd=2, relief=GROOVE)
+        comFrm.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
+        comFrm.combo.set(portList[0])
+        comFrm.comm = cm
+
+    # *******************************
+    # ****** Measurement Tab ********
+    # *******************************
+        global measFrm
+        measFrm = MeasurementFrame(
+            tab1, DEBUG=MEAS_TAB_DBG)  # invoking the class
+        y_mF = 280
+        if MEAS_TAB_DBG:
+            measFrm.config(width=580, height=y_mF+40, bd=4, relief=RIDGE)
+        else:
+            measFrm.config(width=580, height=y_mF, bd=2, relief=FLAT)
+        measFrm.grid(row=2, column=0, padx=10, pady=4, sticky=NW)
+        measFrm.comm = cm   # initializeing self.com in DpmMain class
+
+    # ******************************
+    # ****** DPM Config Tab ********
+    # ******************************
+        global configFrm
+
+        configFrm = ConfigFrame(tab2, DEBUG=CFG_TAB_DBG)  # invoking the class
+        y_cF = 300
+        if CFG_TAB_DBG:
+            configFrm.config(width=580, height=y_cF +
+                             40, bd=4, relief=RIDGE)
+        else:
+            configFrm.config(width=580, height=y_cF, bd=2, relief=FLAT)
+        configFrm.grid(row=2, column=0, padx=10, pady=4, sticky=NW)
+        configFrm.comm = cm   # initializeing self.com in DpmMain class
+
+    # ***************************
+    # ****** Status Bar *********
+    # ***************************
+        global stsBar
+
+        stsFrm = ttk.Frame(self)
+        stsFrm.grid(row=3, column=0, columnspan=3,
+                    sticky='nsew', padx=5, pady=5)
+
+        stsBar = ttk.Label(
+            stsFrm, text='Not connected', font=("Helvetica", 9), anchor=W, relief='sunken')
+        stsBar.pack(side='bottom', expand=True, fill='both', ipadx=5, ipady=2)
+
+        # ********** MENU ***********
+        my_menu = Menu(self)
+        self.config(menu=my_menu)
+
+        config_menu = Menu(my_menu, tearoff=False)
+        my_menu.add_cascade(label="Config", menu=config_menu)
+        config_menu.add_command(label="Load config", command=comFrm.loadConfig)
+        config_menu.add_command(label="Store config",
+                                command=comFrm.saveConfig)
+        config_menu.add_command(label="Restore defaults",
+                                command=comFrm.loadDefaultSettings)
+
+        help_menu = Menu(my_menu, tearoff=False)
+        my_menu.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="Help")
+        help_menu.add_separator()
+        help_menu.add_command(label="About", command=self.showAbout)
+
+        # ********** Load Configuration ***********
+        comFrm.loadConfig()  # includes autoConnect and lastUsedPort
+
+        # * At this point we have a list of valid COM ports.
+        # * Next step is to connect to one of them.
+        if comFrm.autoConnect:  # if autoConnect set
+            if len(portList) > 1:  # no need to check if ==0. boardcom.py already does
+                if comFrm.lastUsedPort in portList:  # if last used port is in the portList
+                    # connect to that port
+                    comFrm.connectPort(comFrm.lastUsedPort,
+                                       checkIsDpmPresent=False)
+            else:
+                # otherwise connect to the first in the list
+                comFrm.connectPort(portList[0], checkIsDpmPresent=False)
+        # If not autoconnect then do not connect to anything
+
+        stsBar.config(text=comFrm.serParams)
+
+        self.mainloop()
+
+    def showAbout(self):
+        aboutMsg = '''
+            *************************
+            *** DPM EVK Dashboard ***
+            *************************
+
+            Ver 0.8
+            Authors:
+            Csaba Moldvai, Eyal Barzilay
+            '''
+        showinfo('About', aboutMsg)
+
 
 class SerComFrame(Frame):
+
+    global comFrm  # ! Check global
+    global dp
+
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Serial Connection',
                             padx=10, pady=10)
@@ -19,7 +167,7 @@ class SerComFrame(Frame):
         self.STANDALONE = False
         self.comm = None   # object created by boardcom
         self.portStatus = 'disconnected'
-        self.selPort = ''  # ! keeps track of the selected port, between calls
+        self.selPort = ''  # keeps track of the selected port, between calls
         self.portList = []
         self.portHandle = None
         self.chk_var = IntVar()
@@ -69,9 +217,9 @@ class SerComFrame(Frame):
     def updtPortList(self):
         self.portList = self.comm.findPorts()
         self.combo['values'] = self.portList
-        self.combo.set(portList[0])
+        self.combo.set(self.portList[0])
 
-    def connectPort(self, defaultPort=None, checkIsDpmPresent=True):
+    def connectPort(self, defaultPort=None, checkIsDpmPresent=False):
         if self.portStatus == 'disconnected':
             if defaultPort:
                 self.selPort = defaultPort         # updates class variable as well
@@ -84,14 +232,14 @@ class SerComFrame(Frame):
             self.btn2.config(text='Disconnect')  # change button label
             self.portStatus = 'connected'  # update connection status
             self.serParams = f'Connected: {self.comPort} ({self.comBaudrate},{self.comBytesize},{self.comParity},{self.comStopbits},{self.comXonXoff})'
-            stsBarFrm.config(text=self.serParams)
+            stsBar.config(text=self.serParams)
 
         elif self.portStatus == 'connected':
             # if connected, disconnect from the current port
             self.disconnectPort(self.selPort)
             self.btn2['text'] = 'Connect'  # update button label
             self.portStatus = 'disconnected'  # update connection status
-            stsBarFrm.config(text='Disconnected')
+            stsBar.config(text='Disconnected')
         else:
             print('No such port. Try again!!!')
         self.saveConfig()
@@ -99,7 +247,7 @@ class SerComFrame(Frame):
     def disconnectPort(self, selPort):
         self.comm.disconnect(selPort)
         # print(f"Port: {selPort} disconnected")
-        stsBarFrm.config(text='No COM port found!')
+        stsBar.config(text='No COM port found!')
 
     def checkConnection(self):
         if self.portStatus == 'disconnected':
@@ -116,27 +264,27 @@ class SerComFrame(Frame):
         self.comXonXoff = self.portHandle.xonxoff
 
     def loadDefaultSettings(self):
-        serCom.chk_var.set(0)
-        serCom.selPort = ''
-        dpm.brng = 2
-        dpm.pg = 3
-        dpm.badc = 3
-        dpm.sadc = 3
-        dpm.mode = 7
-        dpm.rshunt = 0.1
+        comFrm.chk_var.set(0)
+        comFrm.selPort = ''
+        dp.brng = 2
+        dp.pg = 3
+        dp.badc = 3
+        dp.sadc = 3
+        dp.mode = 7
+        dp.rshunt = 0.1
         # update the GUI to reflect the values loaded from the file
         self.set_gui_config_params()
 
     def saveConfig(self):
-        cfg = {'autoConnect': serCom.chk_var.get(),
-               'lastUsedPort': serCom.selPort,
-               'vbus_range': dpm.brng,
-               'vshunt_range': dpm.pg,
-               'bus_conv_time': dpm.badc,
-               'sht_conv_time': dpm.sadc,
-               'mode': dpm.mode,
-               #    'rshunt_ohm': float(dpm.rshunt)
-               'rshunt_ohm': dpm.rshunt
+        cfg = {'autoConnect': comFrm.chk_var.get(),
+               'lastUsedPort': comFrm.selPort,
+               'vbus_range': dp.brng,
+               'vshunt_range': dp.pg,
+               'bus_conv_time': dp.badc,
+               'sht_conv_time': dp.sadc,
+               'mode': dp.mode,
+               #    'rshunt_ohm': float(dp.rshunt)
+               'rshunt_ohm': dp.rshunt
                }
         with open(f'{self.dpmConfigPath}\dpm.cfg', 'w') as fh:
             json.dump(cfg, fh, indent=3)
@@ -146,17 +294,17 @@ class SerComFrame(Frame):
         try:
             fname = open(fname, 'r')
             cfg = json.load(fname)  # get configuration from .cfg file
-            serCom.autoConnect = cfg['autoConnect']  # get autoConnect config
-            serCom.chk_var.set(serCom.autoConnect)   # ...set checkbox
-            serCom.selPort = cfg['lastUsedPort']     # get last used port
-            serCom.lastUsedPort = serCom.selPort     # ...set it
+            comFrm.autoConnect = cfg['autoConnect']  # get autoConnect config
+            comFrm.chk_var.set(comFrm.autoConnect)   # ...set checkbox
+            comFrm.selPort = cfg['lastUsedPort']     # get last used port
+            comFrm.lastUsedPort = comFrm.selPort     # ...set it
             # read saved config values and update dmp attributes
-            dpm.brng = cfg['vbus_range']
-            dpm.pg = cfg['vshunt_range']
-            dpm.badc = cfg['bus_conv_time']
-            dpm.sadc = cfg['sht_conv_time']
-            dpm.mode = cfg['mode']
-            dpm.rshunt = float(cfg['rshunt_ohm'])
+            dp.brng = cfg['vbus_range']
+            dp.pg = cfg['vshunt_range']
+            dp.badc = cfg['bus_conv_time']
+            dp.sadc = cfg['sht_conv_time']
+            dp.mode = cfg['mode']
+            dp.rshunt = float(cfg['rshunt_ohm'])
             # update the GUI to reflect the values loaded from the file
             self.set_gui_config_params()
             fname.close()
@@ -165,12 +313,12 @@ class SerComFrame(Frame):
             self.saveConfig()
 
     def set_gui_config_params(self):
-        configFrm.bus_vrange_cb.set(configFrm.bus_vrange[dpm.brng])
-        configFrm.sh_vrange_cb.set(configFrm.sh_vrange[dpm.pg])
-        configFrm.bus_conv_time_cb.set(configFrm.adc_conv_time[dpm.badc])
-        configFrm.sh_conv_time_cb.set(configFrm.adc_conv_time[dpm.sadc])
-        configFrm.conv_mode_cb.set(configFrm.adc_conv_mode[dpm.mode])
-        configFrm.rshunt_var.set(dpm.rshunt)
+        configFrm.bus_vrange_cb.set(configFrm.bus_vrange[dp.brng])
+        configFrm.sh_vrange_cb.set(configFrm.sh_vrange[dp.pg])
+        configFrm.bus_conv_time_cb.set(configFrm.adc_conv_time[dp.badc])
+        configFrm.sh_conv_time_cb.set(configFrm.adc_conv_time[dp.sadc])
+        configFrm.conv_mode_cb.set(configFrm.adc_conv_mode[dp.mode])
+        configFrm.rshunt_var.set(dp.rshunt)
 
     def testSerComm(self):
         serParams = '%s, baud=%d, bytes=%1d,\nparity=%s, stop=%1d, protocol=%s' \
@@ -179,6 +327,8 @@ class SerComFrame(Frame):
 
 
 class MeasurementFrame(Frame):
+
+    global dp
 
     def __init__(self, parent=None, DEBUG=False):
         # LabelFrame.__init__(self, parent, text='Measurements', padx=5, pady=5)
@@ -239,32 +389,30 @@ class MeasurementFrame(Frame):
                                pady=10, sticky=EW, columnspan=3)
             # Print parameters available for a Tkinter Label
             print(self.test_lbl.configure().keys())
-            # self.test_lbl['relief'] = 'sunken'
-            # self.test_lbl['bg'] = '#fff'
             self.test_lbl.config(relief='sunken', bg='#fff',
                                  width=40, font=('Calibri', 11))
 
     def start_stop(self):
 
-        if dpm.mode == 0 or dpm.mode == 4:
+        if dp.mode == 0 or dp.mode == 4:
             # Power Down, ADC Off
             self.get_a_measurement(0, 0, 0, 0)
             self.meas_in_progress = False
             self.btn_start_meas.config(text='START', fg='black')
 
-        elif dpm.mode == 1:
+        elif dp.mode == 1:
             # Vshunt Triggered
             self.get_a_measurement(1, 0, 1, 0)
             self.meas_in_progress = False
             self.btn_start_meas.config(text='START', fg='black')
 
-        elif dpm.mode == 2:
+        elif dp.mode == 2:
             # Vbus Triggered
             self.get_a_measurement(0, 1, 0, 0)
             self.meas_in_progress = False
             self.btn_start_meas.config(text='START', fg='black')
 
-        elif dpm.mode == 3:
+        elif dp.mode == 3:
             # Vshunt+Vbus Triggered
             self.get_a_measurement(1, 1, 1, 1)
             self.meas_in_progress = False
@@ -285,56 +433,46 @@ class MeasurementFrame(Frame):
     def update_measurement(self):
         if self.meas_in_progress:
             self.get_a_measurement(1, 1, 1, 1)
-            root.after(500, self.update_measurement)
+            self.after(500, self.update_measurement)
 
-    # TODO may add parameters which measurements to take
     def get_a_measurement(self, get_vs, get_vb, get_i, get_p):
-
-        # TODO To clear the conversion ready bit must write to config reg or read power
-        # This can be done multiple places, for now I put it here
-        # May be put into the start_stop function
-        dpm.prog_config_reg()  # Clear CNVR Conversion Ready (Bit 1)
-        # dpm.prog_calib_reg()  # this is probably not needed. Only when updating config regs
+        dp.prog_config_reg()  # Clear CNVR Conversion Ready (Bit 1)
 
         if get_vs:
-            v_sh = dpm.read_shunt_voltage()
-            if v_sh > dpm.vshunt_range_tbl[dpm.pg]:
+            v_sh = dp.read_shunt_voltage()
+            if v_sh > dp.vshunt_range_tbl[dp.pg]:
                 self.vshunt_lbl.config(fg='red')
             else:
                 self.vshunt_lbl.config(fg='black')
             self.vshunt_lbl['text'] = f'{1e3*v_sh:0.3f}'
 
         if get_vb:
-            v_b = dpm.read_bus_voltage()
-            if v_b > dpm.vbus_range_tbl[dpm.brng]:
+            v_b = dp.read_bus_voltage()
+            if v_b > dp.vbus_range_tbl[dp.brng]:
                 self.vbus_lbl.config(fg='red')
             else:
                 self.vbus_lbl.config(fg='black')
             self.vbus_lbl['text'] = f'{v_b:0.3f}'
 
         if get_i:
-            cur = dpm.read_current()
+            cur = dp.read_current()
             self.i_lbl.config(text=f'{cur:0.3f}')
 
         if get_p:
-            pwr = dpm.read_power()
+            pwr = dp.read_power()
             self.p_lbl.config(text=f'{pwr:0.3f}')
 
     def test_func(self):
-        vals = dpm.readRegisters()
+        vals = dp.readRegisters()
         self.test_lbl.config(text=vals)
-        # print(f'vbus = {dpm.read_bus_voltage():.3f}V ', end='')
-        # print(f'vshunt = {dpm.read_shunt_voltage():.3f}V ', end='')
-        # print(f'current = {dpm.read_current():.3f}A ', end='')
-        # print(f'power = {dpm.read_power():.2f}mW ')
-        # print(dpm.brng, dpm.pg, dpm.badc, dpm.sadc, dpm.mode, dpm.rshunt)
 
 
 class ConfigFrame(Frame):
 
+    global dp
+
     def __init__(self, parent=None, DEBUG=False):
         LabelFrame.__init__(self, parent, text='Configuration', padx=5, pady=5)
-        # self.pack(side=TOP, anchor=NW, padx=10, pady=10)
         self.DEBUG = DEBUG
         self.comm = None
         self.rshunt_var = IntVar()
@@ -404,15 +542,10 @@ class ConfigFrame(Frame):
             row=4, column=3, pady=5, sticky=W)
         self.rshunt_var.set('1.0')
 
-        # chk0 = Checkbutton(self, text='Vbus', variable=self.chk_var)
-        # chk0.grid(row=5, column=0)
-
         Label(self, text='Config Reg').grid(
             row=5, column=0, padx=5, pady=5, sticky=E)
         self.cfg_reg_lbl = Label(
             self, text='', anchor=W)
-        # self.cfg_reg_lbl = Label(
-        #     self, text="R BR PG ADC1 ADC2 MOD [FFFFh]", anchor=W, justify='center')
         self.cfg_reg_lbl.grid(row=5, column=1, padx=20,
                               pady=5, sticky=EW, columnspan=2)
         self.cfg_reg_lbl.config(relief=GROOVE, width=24, font=('Calibri', 11))
@@ -435,33 +568,33 @@ class ConfigFrame(Frame):
 
     def apply_dpm_config(self):
         # get config parameters from GUI and update dpm attributes
-        dpm.brng = self.bus_vrange_cb.current()
-        dpm.pg = self.sh_vrange_cb.current()
-        dpm.badc = self.bus_conv_time_cb.current()
-        dpm.sadc = self.sh_conv_time_cb.current()
-        dpm.mode = self.conv_mode_cb.current()
-        dpm.rshunt = float(self.ent_rshunt.get())
-        print(f'rshunt type: {type(dpm.rshunt)}, value:{dpm.rshunt}')
+        dp.brng = self.bus_vrange_cb.current()
+        dp.pg = self.sh_vrange_cb.current()
+        dp.badc = self.bus_conv_time_cb.current()
+        dp.sadc = self.sh_conv_time_cb.current()
+        dp.mode = self.conv_mode_cb.current()
+        dp.rshunt = float(self.ent_rshunt.get())
+        print(f'rshunt type: {type(dp.rshunt)}, value:{dp.rshunt}')
 
         # TODO check this. Should it be here or in 'start_stop'?
 
         measFrm.meas_in_progress = False
         measFrm.btn_start_meas.config(text='START', fg='black')
         # Actions to do depending on the value of the MODE BITS
-        if dpm.mode == 0 or dpm.mode == 4:
+        if dp.mode == 0 or dp.mode == 4:
             # Power Down, ADC OFF
             measFrm.vshunt_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
             measFrm.vbus_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
             measFrm.i_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
             measFrm.p_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
 
-        elif dpm.mode == 1 or dpm.mode == 5:
+        elif dp.mode == 1 or dp.mode == 5:
             measFrm.vshunt_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
             measFrm.vbus_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
             measFrm.i_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
             measFrm.p_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
 
-        elif dpm.mode == 2 or dpm.mode == 6:
+        elif dp.mode == 2 or dp.mode == 6:
             measFrm.vshunt_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
             measFrm.vbus_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
             measFrm.i_lbl.config(text='---', state=DISABLED, bg='#e0e0e0')
@@ -474,162 +607,28 @@ class ConfigFrame(Frame):
             measFrm.p_lbl.config(text='---', state=NORMAL, bg='#f8f8f8')
 
         # save values into file
-        serCom.saveConfig()
-        # b = f'0|{dpm.brng:02b}|{dpm.pg:02b}|{dpm.badc:04b}|{dpm.sadc:04b}|{dpm.mode:03b}'
-        b = f'0 {dpm.brng:02b} {dpm.pg:02b} {dpm.badc:04b} {dpm.sadc:04b} {dpm.mode:03b}'
-        w = (dpm.brng << 13) | (dpm.pg << 11) | (
-            dpm.badc << 7) | (dpm.sadc << 3) | dpm.mode
+        comFrm.saveConfig()
+        # b = f'0|{dp.brng:02b}|{dp.pg:02b}|{dp.badc:04b}|{dp.sadc:04b}|{dp.mode:03b}'
+        b = f'0 {dp.brng:02b} {dp.pg:02b} {dp.badc:04b} {dp.sadc:04b} {dp.mode:03b}'
+        w = (dp.brng << 13) | (dp.pg << 11) | (
+            dp.badc << 7) | (dp.sadc << 3) | dp.mode
         msg = b + f' = {w:04X}h'
         self.cfg_reg_lbl.config(text=msg)
         # program DPM registers with values set in GUI
         print(
-            f'brng={dpm.brng}, pg={dpm.pg}, badc={dpm.badc}, sadc={dpm.sadc}, mode={dpm.mode},rval={dpm.rshunt}')
-        dpm.prog_config_reg()
-        dpm.prog_calib_reg()
+            f'brng={dp.brng}, pg={dp.pg}, badc={dp.badc}, sadc={dp.sadc}, mode={dp.mode},rval={dp.rshunt}')
+        dp.prog_config_reg()
+        dp.prog_calib_reg()
 
     def updtRegs(self):
         print('selection made')
 
     def testRead(self):
-        # print(dpm.readRegisters())  # prints the values of 10 registers
         # displays the values of configuration Tab in this label
-        vals = f'brng={dpm.brng}, pg={dpm.pg}, badc={dpm.badc}, sadc={dpm.sadc}, mode={dpm.mode},rval={dpm.rshunt}'
+        vals = f'brng={dp.brng}, pg={dp.pg}, badc={dp.badc}, sadc={dp.sadc}, mode={dp.mode},rval={dp.rshunt}'
         self.test_lbl.config(text=vals)
 
 
 if __name__ == "__main__":
 
-    # def updtStsBar(statusMsg):
-    #     print(statusMsg)
-    #     stsBarComm.config(text=statusMsg)
-
-    def showAbout():
-        aboutMsg = '''
-                   *************************
-                   *** DPM EVK Dashboard ***
-                   *************************
-
-                   Ver 0.8
-                   Authors: 
-                   Csaba Moldvai, Eyal Barzilay
-                '''
-        showinfo('About', aboutMsg)
-
-    root = Tk()
-    root.title('Digital Power Monitoring (DPM) Dashboard App')
-
-    cm = boardcom.BoardComm()   # create an instance of class Comm
-    dpm = dpm.DpmEK(cm)         # create an instance of class DpmEK
-
-    portList = cm.findPorts()
-    comport = portList[0]
-
-    # TODO Eventually migrate to a format where MainWindow is in itw own class
-    # window = MainWindow(root)
-
-# ******************************************
-# ******             TABS           ********
-# ******************************************
-    tabControl = ttk.Notebook(root)
-
-    tab1 = ttk.Frame(tabControl)
-    tab2 = ttk.Frame(tabControl)
-    tab3 = ttk.Frame(tabControl)
-
-    tabControl.add(tab1, text='Measurements')
-    tabControl.add(tab2, text='DPM Configuration')
-    tabControl.add(tab3, text='Connection')
-    tabControl.grid(row=0, column=0, columnspan=3, padx=10, pady=5, sticky=EW)
-
-# *******************************************
-# ****** Serial Communications Tab ********
-# *******************************************
-    serCom = SerComFrame(tab3, DEBUG=SERCOM_DBG)  # invoking the class
-    # serCom.pack(side=TOP, fill=BOTH)
-    serCom.grid_propagate(0)
-    serComFrm_height = 60
-    if SERCOM_DBG:
-        serCom.config(width=350, height=serComFrm_height +
-                      40, bd=4, relief=RIDGE)
-    else:
-        serCom.config(width=350, height=serComFrm_height, bd=2, relief=GROOVE)
-    serCom.grid(row=1, column=0, padx=10, pady=4, sticky=NW)
-    serCom.combo.set(portList[0])
-    serCom.comm = cm
-
-# *******************************
-# ****** Measurement Tab ********
-# *******************************
-    measFrm = MeasurementFrame(tab1, DEBUG=MEAS_TAB_DBG)  # invoking the class
-    # program.pack(side=LEFT, fill=BOTH)
-    measFrm.grid_propagate(0)
-    y_mF = 280
-    if MEAS_TAB_DBG:
-        measFrm.config(width=580, height=y_mF+40, bd=4, relief=RIDGE)
-    else:
-        measFrm.config(width=580, height=y_mF, bd=2, relief=FLAT)
-    measFrm.grid(row=2, column=0, padx=10, pady=4, sticky=NW)
-    measFrm.comm = cm   # initializeing self.com in DpmMain class
-
-# ******************************
-# ****** DPM Config Tab ********
-# ******************************
-    configFrm = ConfigFrame(tab2, DEBUG=CFG_TAB_DBG)  # invoking the class
-    # program.pack(side=LEFT, fill=BOTH)
-    configFrm.grid_propagate(0)
-    y_cF = 300
-    if CFG_TAB_DBG:
-        configFrm.config(width=580, height=y_cF +
-                         40, bd=4, relief=RIDGE)
-    else:
-        configFrm.config(width=580, height=y_cF, bd=2, relief=FLAT)
-    configFrm.grid(row=2, column=0, padx=10, pady=4, sticky=NW)
-    configFrm.comm = cm   # initializeing self.com in DpmMain class
-
-# ***************************
-# ****** Status Bar *********
-# ***************************
-    stsBarFrm = Label(root, text='Not connected', font=(
-        "Helvetica", 9), anchor=W, justify=LEFT, pady=2)
-    stsBarFrm.config(bd=1, relief=SUNKEN)
-    # stsBarComm.pack(side=BOTTOM, fill=X, anchor=W, padx=10, pady=10)
-    stsBarFrm.grid_propagate(0)
-    stsBarFrm.grid(row=4, column=0, padx=10, pady=5,
-                   columnspan=3, sticky=EW)
-
-    # ********** MENU ***********
-    my_menu = Menu(root)
-    root.config(menu=my_menu)
-
-    config_menu = Menu(my_menu, tearoff=False)
-    my_menu.add_cascade(label="Config", menu=config_menu)
-    config_menu.add_command(label="Load config", command=serCom.loadConfig)
-    config_menu.add_command(label="Store config", command=serCom.saveConfig)
-    config_menu.add_command(label="Restore defaults",
-                            command=serCom.loadDefaultSettings)
-
-    help_menu = Menu(my_menu, tearoff=False)
-    my_menu.add_cascade(label="Help", menu=help_menu)
-    help_menu.add_command(label="Help")
-    help_menu.add_separator()
-    help_menu.add_command(label="About", command=showAbout)
-
-    # ********** Load Configuration ***********
-    serCom.loadConfig()  # includes autoConnect and lastUsedPort
-
-    # * At this point we have a list of valid COM ports.
-    # * Next step is to connect to one of them.
-    if serCom.autoConnect:  # if autoConnect set
-        if len(portList) > 1:  # no need to check if ==0. boardcom.py already does
-            if serCom.lastUsedPort in portList:  # if last used port is in the portList
-                # connect to that port
-                serCom.connectPort(serCom.lastUsedPort,
-                                   checkIsDpmPresent=False)
-        else:
-            # otherwise connect to the first in the list
-            serCom.connectPort(portList[0], checkIsDpmPresent=False)
-    # If not autoconnect then do not connect to anything
-
-    stsBarFrm.config(text=serCom.serParams)
-
-    root.mainloop()
+    app = App('Digital Power Monitoring (DPM) Dashboard App', (600, 400))

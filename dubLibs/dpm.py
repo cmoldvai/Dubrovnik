@@ -27,21 +27,24 @@ class DpmEK():
         # Table converting config register BADC and SADC field values to sample conversion times.
         # The field value is an index to the table. The table values are expressed in microseconds
 
-    def set_config(self):
-        ''' This function sets the DPM configuration register. It generates the config register value from
+    # def set_config(self):
+    def prog_config_reg(self):
+        ''' This function programs the DPM configuration register. It generates the config register value from
         the values of its fields: BRNG, PG, BADC, SADC and MODE. Then it writes the generated value
-        into the config register. The config register field values are the arguments to the function.'''
+        into the config register. The config register field values are the arguments to the function.
+        (old name: set_config)'''
         w = (self.brng << 13) | (self.pg << 11) | (
             self.badc << 7) | (self.sadc << 3) | self.mode
         # print(f'{w:x}')
         self.comm.send(f'wr 0 {w:x}')
 
-    def set_calibration(self):
-        ''' This function sets the DPM calibration register. It calculates the calibration register
+    def prog_calib_reg(self):
+        ''' This function programs the DPM calibration register. It calculates the calibration register
         value based on equations described in the datasheet. Note that these equations can be be simplified
         as shown below. At the end the calibration value depends only on the shunt voltage range or Vshunt
         Full Scale (VshuntFS) which can be obtained from the PG field of the config register. This field's
-        value is the argument to this function.
+        value is the argument to this function. 
+        (old name: set_calibration)
         Below we develop the datasheet equations:
 
         CalRegval =
@@ -56,8 +59,9 @@ class DpmEK():
         w = int(1342.177 / vshuntfs)
         self.comm.send(f'wr 5 {w:x}')
 
-    def set_vshunt_threshold(self, minv, maxv):
-        ''' This function sets the shunt voltage threshold register. It takes 2 floating point
+    # def set_vshunt_threshold(self, minv, maxv):
+    def prog_vshunt_threshold_reg(self, minv, maxv):
+        ''' This function programs the shunt voltage threshold register. It takes 2 floating point
         arguments which are the desired min and max shunt voltage threshold values. From these
         values it generates the bit value of the shunt voltage threshold register and writes it
         to the register.'''
@@ -74,7 +78,7 @@ class DpmEK():
         w = minv_bitfield_value | (maxv_bitfield_value << 8)
         self.comm.send(f'wr 6 {w:x}')
 
-    def set_vbus_threshold(self, minv, maxv):
+    def prog_vbus_threshold_reg(self, minv, maxv):
         ''' This function sets the bus voltage threshold register. It takes 2 floating point
         arguments which are the desired min and max bus voltage threshold values. From these
         values it generates the bit value of the bus voltage threshold register and writse it
@@ -206,12 +210,12 @@ if __name__ == '__main__':
     dpm.badc = 0x9  # 1.01ms
     dpm.sadc = 0xf  # 64.01ms
     dpm.mode = 0x7  # shunt & bus continuous
-    dpm.rshunt = 1.0
+    dpm.rshunt = .1
 
-    dpm.set_config()
-    dpm.set_calibration()
-    dpm.set_vshunt_threshold(0.02, 0.06)
-    dpm.set_vbus_threshold(2.0, 4.0)
+    dpm.prog_config_reg()
+    dpm.prog_calib_reg()
+    dpm.prog_vshunt_threshold_reg(0.02, 0.06)
+    dpm.prog_vbus_threshold_reg(2.0, 4.0)
 
     print("### continouously read measurements for one minute ###")
 

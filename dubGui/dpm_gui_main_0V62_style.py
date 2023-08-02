@@ -159,7 +159,7 @@ class App(tb.Window):
             *** DPM EVK Dashboard ***
             *************************
 
-            Ver 0.8
+            Ver 0.62
             Authors:
             Csaba Moldvai, Eyal Barzilay
             '''
@@ -450,7 +450,7 @@ class MeasurementFrame(ttk.Frame):
             self.after(500, self.update_measurement)
 
     def get_a_measurement(self, get_vs, get_vb, get_i, get_p):
-        dp.set_config()  # Clear CNVR Conversion Ready (Bit 1)
+        dp.prog_config_reg()  # Clear CNVR Conversion Ready (Bit 1)
 
         if get_vs:
             v_sh = dp.read_shunt_voltage()
@@ -647,8 +647,8 @@ class ConfigFrame(ttk.Frame):
         # program DPM registers with values set in GUI
         print(
             f'brng={dp.brng}, pg={dp.pg}, badc={dp.badc}, sadc={dp.sadc}, mode={dp.mode},rval={dp.rshunt}')
-        dp.set_config()
-        dp.set_calibration()
+        dp.prog_config_reg()
+        dp.prog_calib_reg()
 
     def updtRegs(self):
         print('selection made')
