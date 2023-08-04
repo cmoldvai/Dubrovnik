@@ -4,14 +4,17 @@ import json
 # from tkinter import messagebox
 from tkinter import simpledialog
 from tkinter.messagebox import showerror, showinfo
-import tkinter as tk
-from tkinter import ttk
+# import tkinter as tk
+# from tkinter import ttk
+import customtkinter as ctk
+from tkinter import Menu
+
 from dubLibs import boardcom
 from dubLibs import dpm
 
-SERCOM_DBG = False
 MEAS_TAB_DBG = False
 CFG_TAB_DBG = False
+SERCOM_DBG = False
 
 comFrm = None
 measFrm = None
@@ -20,7 +23,7 @@ stsBar = None
 dp = None
 
 
-class App(tk.Tk):
+class App(ctk.CTk):
     def __init__(self, title, size):
         super().__init__()
 
@@ -31,33 +34,10 @@ class App(tk.Tk):
         else:
             self.geometry(f'{size[0]}x{size[1]}')
 
-        # self.minsize(size[0], size[1])
-        self.resizable(False,False)
-
-        #  List of styles: 'winnative', 'clam', 'alt', 'default', 'classic', 'vista', 'xpnative'
-        # style = ttk.Style()
-        # style.theme_use('clam')
-
-        #! ************* STYLE IMPLEMENTATION COPIED FROM INTERNET *****************
-        #!  ************ STUDY AND IMPLEMENT!!! **************
-        # root = tk.Tk()
-
-        # s = ttk.Style()
-        # s.theme_create( "MyStyle", parent="alt", settings={
-        #         "TNotebook": {"configure": {"tabmargins": [2, 5, 2, 0] } },
-        #         "TNotebook.Tab": {"configure": {"padding": [100, 10],
-        #                                         "font" : ('URW Gothic L', '11', 'bold')},}})
-        # s.theme_use("MyStyle")
-
-        # notebook = ttk.Notebook(root)
-
-        # f1 = tk.Frame(notebook, bg='red', width=200, height=200)
-        # f2 = tk.Frame(notebook, bg='blue', width=200, height=200)
-
-        # notebook.add(f1, text="frame 1" )
-        # notebook.add(f2, text="frame 2 longer" )
-        #! **************************************************************************
-
+        self.minsize(size[0], size[1])
+        # self.resizable(False,False)
+        
+        ctk.set_appearance_mode("dark")  # options are: 'system','dark','light'
 
         cm = boardcom.BoardComm()   # create an instance of class Comm
         dp = dpm.DpmEK(cm)         # create an instance of class DpmEK
@@ -67,16 +47,16 @@ class App(tk.Tk):
     # ******************************************
     # ******             TABS           ********
     # ******************************************
-        tabs = ttk.Notebook(self)
-
-        tab1 = ttk.Frame(tabs)
-        tab2 = ttk.Frame(tabs)
-        tab3 = ttk.Frame(tabs)
-
-        tabs.add(tab1, text='Measurements')
-        tabs.add(tab2, text='DPM Configuration')
-        tabs.add(tab3, text='Connection')
-        tabs.grid(row=0, column=0, columnspan=3, padx=10, pady=5, sticky='')
+        tabs = ctk.CTkTabview(self, width=size[0], height=size[1])
+        tab1 = tabs.add('Measurements')
+        tab2 = tabs.add('DPM Configuration')
+        tab3 = tabs.add('Connection')
+        # tabs.grid(row=0, column=0, columnspan=3, padx=10, pady=5, sticky='')
+        # tabs.grid(padx=10, pady=5, sticky='nswe')
+        # tabs.pack(side='top', expand=True, fill='x')
+        #! USE 'place' !!!!!!! This will ensure the status bar goes on bottom
+        #! TABS and STATUS BAR are all children of the main App()
+        tabs.place(x=0,y=0,relheight=.9,relwidth=1)
 
     # *******************************************
     # ****** Serial Communications Tab ********
@@ -84,14 +64,15 @@ class App(tk.Tk):
         global comFrm
 
         comFrm = SerComFrame(tab3, DEBUG=SERCOM_DBG)  # invoking the class
-        serComFrm_height = 60
-        if SERCOM_DBG:
-            comFrm.config(width=350, height=serComFrm_height +
-                          40, borderwidth=4, relief='groove')
-        else:
-            comFrm.config(width=350, height=serComFrm_height,
-                          borderwidth=2, relief='flat')
-        comFrm.grid(row=1, column=0, padx=10, pady=4, sticky='nw')
+        #! Fix frame locations in customTkinter
+        # ydim = 280
+        # if SERCOM_DBG:
+        #     comFrm.configure(width=size[0]-40, height=ydim+40, border_width=4)
+        # else:
+        #     comFrm.configure(width=size[0]-40, height=ydim, border_width=2)
+        # comFrm.grid(row=1, column=0, padx=10, pady=4, sticky='nw')
+        
+        
         comFrm.combo.set(portList[0])
         comFrm.comm = cm
 
@@ -99,16 +80,15 @@ class App(tk.Tk):
     # ****** Measurement Tab ********
     # *******************************
         global measFrm
-        measFrm = MeasurementFrame(
-            tab1, DEBUG=MEAS_TAB_DBG)  # invoking the class
-        ydim = 280
-        if MEAS_TAB_DBG:
-            measFrm.config(width=580, height=ydim+40,
-                           borderwidth=4, relief='ridge')
-        else:
-            measFrm.config(width=580, height=ydim,
-                           borderwidth=2, relief='flat')
-        measFrm.grid(row=2, column=0, padx=10, pady=4, sticky='nw')
+        measFrm = MeasurementFrame(tab1, DEBUG=MEAS_TAB_DBG)  # invoking the class
+
+        # ydim = 280
+        # if MEAS_TAB_DBG:
+        #     measFrm.configure(width=580, height=ydim+40, border_width=4)
+        # else:
+        #     measFrm.configure(width=580, height=ydim, border_width=2)
+        # measFrm.grid(row=2, column=0, padx=10, pady=4, sticky='nw')
+
         measFrm.comm = cm   # initializeing self.com in DpmMain class
 
     # ******************************
@@ -117,14 +97,14 @@ class App(tk.Tk):
         global configFrm
 
         configFrm = ConfigFrame(tab2, DEBUG=CFG_TAB_DBG)  # invoking the class
-        y_cF = 300
-        if CFG_TAB_DBG:
-            configFrm.config(width=580, height=y_cF +
-                             40, borderwidth=4, relief='ridge')
-        else:
-            configFrm.config(width=580, height=y_cF,
-                             borderwidth=2, relief='flat')
-        configFrm.grid(row=2, column=0, padx=10, pady=4, sticky='nw')
+
+        # y_cF = 300
+        # if CFG_TAB_DBG:
+        #     configFrm.configure(width=580, height=y_cF+40, border_width=4)
+        # else:
+        #     configFrm.configure(width=580, height=y_cF, border_width=2)
+        # configFrm.grid(row=2, column=0, padx=10, pady=4, sticky='nw')
+
         configFrm.comm = cm   # initializeing self.com in DpmMain class
 
     # ***************************
@@ -132,19 +112,25 @@ class App(tk.Tk):
     # ***************************
         global stsBar
 
-        stsFrm = ttk.Frame(self)
-        stsFrm.grid(row=3, column=0, columnspan=3,
-                    sticky='nsew', padx=5, pady=5)
+        #! USE 'place' !!!!!!! This will ensure the status bar goes on bottom
+        #! TABS and STATUS BAR are all children of the main App()
 
-        stsBar = ttk.Label(
-            stsFrm, text='Not connected', font=("Helvetica", 9), anchor='w', relief='flat')
+        stsFrm = ctk.CTkFrame(self, fg_color='transparent')
+        stsFrm.place(relx=0,rely=0.9,relheight=.1,relwidth=1)
+
+        #! DELETE THIS ONCE STABLE (need to incorporate DEBUG window size)
+        # stsFrm.pack(side='bottom', expand=True, fill='x',padx=10, pady=10)
+        # stsFrm.grid(row=3, column=0, columnspan=3,
+        #             sticky='nsew', padx=5, pady=5)
+
+        stsBar = ctk.CTkLabel(stsFrm, text='Not connected', anchor='w', font=('Helvetica', 14))
         stsBar.pack(side='bottom', expand=True, fill='both', ipadx=5, ipady=2, padx=10)
 
         # ********** MENU ***********
-        my_menu = tk.Menu(self)
-        self.config(menu=my_menu)
+        my_menu = Menu(self) #! was tk.Menu find a way to add a CTk Menu
+        self.configure(menu=my_menu)
 
-        config_menu = tk.Menu(my_menu, tearoff=False)
+        config_menu = Menu(my_menu, tearoff=False) #! was tk.Menu find a way to add a CTk Menu
         my_menu.add_cascade(label="Config", menu=config_menu)
         config_menu.add_command(label="Load config", command=comFrm.loadConfig)
         config_menu.add_command(label="Store config",
@@ -152,7 +138,7 @@ class App(tk.Tk):
         config_menu.add_command(label="Restore defaults",
                                 command=comFrm.loadDefaultSettings)
 
-        help_menu = tk.Menu(my_menu, tearoff=False)
+        help_menu = Menu(my_menu, tearoff=False) #! was tk.Menu find a way to add a CTk Menu
         my_menu.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="Help")
         help_menu.add_separator()
@@ -172,9 +158,7 @@ class App(tk.Tk):
                 # otherwise connect to the first in the list
                 comFrm.connectPort(portList[0])
         # If not autoconnect then do not connect to anything
-
-        # print(comFrm.serParams, type(comFrm.serParams))
-        stsBar.config(text=comFrm.serParams)
+        stsBar.configure(text=comFrm.serParams)
 
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.mainloop()
@@ -197,17 +181,17 @@ class App(tk.Tk):
         showinfo('About', aboutMsg)
 
 
-class SerComFrame(ttk.Frame):
+class SerComFrame(ctk.CTkFrame):
 
     global comFrm  # ! Check global
     global dp
 
     def __init__(self, parent=None, DEBUG=False):
-        # ttk.Frame.__init__(self, parent)
         super().__init__(parent)
 
-        # Pack the Frame
-        self.pack(expand=True, fill='both')
+        # 'self' in this context is CTkFrame, so we can configure it
+        self.configure(fg_color='transparent')
+        self.place(x=0,y=0,relwidth=1,relheight=.8)
 
         self.DEBUG = DEBUG
         self.STANDALONE = False
@@ -217,7 +201,7 @@ class SerComFrame(ttk.Frame):
         self.lastUsedPort = None
         self.portList = []
         self.portHandle = None
-        self.chk_var = tk.IntVar()
+        self.chk_var = ctk.IntVar()
         self.autoConnect = 0
         self.serParams = ''
 
@@ -244,37 +228,31 @@ class SerComFrame(ttk.Frame):
 
     def buildFrame(self):
         #! Check why it doesn't behave
-        comFrm = ttk.Frame(self)
-        # comFrm.place(relx=0.1, rely=0.2, relwidth=1, relheight=1)
-        comFrm.pack(expand=True, fill='both')
+        comFrm = ctk.CTkFrame(self)
+        comFrm.place(relx=0.01, rely=0.1, relwidth=1, relheight=.8)
+        # comFrm.pack(expand=True, fill='both')
         comFrm.columnconfigure((0, 1, 2), weight=1)
 
 
         '''Makes a reusable frame for a connecting to Dubrovnik board'''
-        chk = tk.Checkbutton(comFrm, text='Auto connect', variable=self.chk_var, font=('Helvetica', 10))
+        chk = ctk.CTkCheckBox(comFrm, text='Auto connect', variable=self.chk_var, font=('Helvetica', 14))
         chk.grid(row=0, column=0, pady=20)
 
-        self.combo = ttk.Combobox(
-            comFrm, width=10, values=self.portList, postcommand=self.updtPortList, font=('Helvetica', 10))
+        self.combo = ctk.CTkComboBox(comFrm, values=self.portList, command=self.updtPortList, font=('Helvetica', 14))
         self.combo.grid(row=0, column=1, padx=10, pady=20)
 
-        self.btn2 = tk.Button(comFrm, text='Connect', width=10,
-                               command=self.connectPort, font=('Helvetica', 10))
+        self.btn2 = ctk.CTkButton(comFrm, text='Connect', command=self.connectPort, font=('Helvetica', 14))
         self.btn2.grid(row=0, column=2, padx=10, pady=20)
 
         if self.STANDALONE:
-            self.btn3 = ttk.Button(comFrm, text='Save Config', width=10,
-                                   command=self.saveConfig)
+            self.btn3 = ctk.CTkButton(comFrm, text='Save Config',command=self.saveConfig)
             self.btn3.grid(row=0, column=3, padx=10, sticky='e')
 
         if self.DEBUG:
-            self.test_btn = ttk.Button(comFrm, text='Testing',
-                                       width=10, command=self.testSerComm)
+            self.test_btn = ctk.CTkButton(comFrm, text='Testing', command=self.testSerComm)
             self.test_btn.grid(row=1, column=0, padx=5, pady=10, columnspan=1)
-            self.test_lbl = ttk.Label(
-                comFrm, text="Debug message:", anchor='w', justify='left')
-            self.test_lbl.grid(row=1, column=1, padx=5,
-                               pady=10, sticky='we', columnspan=3)
+            self.test_lbl = ctk.CTkLabel(comFrm, text="Debug message:", anchor='w', justify='left')
+            self.test_lbl.grid(row=1, column=1, padx=5, pady=10, sticky='we', columnspan=3)
 
     def updtPortList(self):
         self.portList = self.comm.findPorts()
@@ -291,18 +269,18 @@ class SerComFrame(ttk.Frame):
             # only if disconnected, connect to selected port
             self.portHandle = self.comm.connect(self.selPort)
             self.setSerialParams()
-            self.btn2.config(text='Disconnect')  # change button label
+            self.btn2.configure(text='Disconnect')  # change button label
             self.portStatus = 'connected'  # update connection status
             # self.serParams = f'Connected: {self.comPort} ({self.comBaudrate},{self.comBytesize},{self.comParity},{self.comStopbits},{self.comXonXoff})'
             self.serParams = f'Connected: {self.comPort}, {self.comBaudrate} bps'
-            stsBar.config(text=self.serParams)
+            stsBar.configure(text=self.serParams)
 
         elif self.portStatus == 'connected':
             # if connected, disconnect from the current port
             self.disconnectPort(self.selPort)
-            self.btn2['text'] = 'Connect'  # update button label
+            self.btn2.configure(text='Connect') # update button label
             self.portStatus = 'disconnected'  # update connection status
-            stsBar.config(text='Disconnected')
+            stsBar.configure(text='Disconnected')
         else:
             print('No such port. Try again!!!')
         self.saveConfig()
@@ -310,7 +288,7 @@ class SerComFrame(ttk.Frame):
     def disconnectPort(self, selPort):
         self.comm.disconnect(selPort)
         # print(f"Port: {selPort} disconnected")
-        stsBar.config(text='No COM port found!')
+        stsBar.configure(text='No COM port found!')
 
     def checkConnection(self):
         if self.portStatus == 'disconnected':
@@ -377,30 +355,33 @@ class SerComFrame(ttk.Frame):
             self.saveConfig()
 
     def set_gui_config_params(self):
+        '''Gets the dp paramter values from dpm class and sets widget values to the current state'''
         configFrm.bus_vrange_cb.set(configFrm.bus_vrange[dp.brng])
         configFrm.sh_vrange_cb.set(configFrm.sh_vrange[dp.pg])
         configFrm.bus_conv_time_cb.set(configFrm.adc_conv_time[dp.badc])
         configFrm.sh_conv_time_cb.set(configFrm.adc_conv_time[dp.sadc])
         configFrm.conv_mode_cb.set(configFrm.adc_conv_mode[dp.mode])
         # configFrm.rshunt_var.set(dp.rshunt)
-        configFrm.ent_rshunt['text'] = dp.rshunt
+        configFrm.ent_rshunt.configure(text=dp.rshunt)
+        # Aslo update the Config Register Label with fresh values
+        configFrm.set_config_reg_label()
    
     def testSerComm(self):
         serParams = '%s, baud=%d, bytes=%1d,\nparity=%s, stop=%1d, protocol=%s' \
             % (self.comPort, self.comBaudrate, self.comBytesize, self.comParity, self.comStopbits, self.comXonXoff)
-        self.test_lbl.config(text=serParams)
+        self.test_lbl.configure(text=serParams)
 
 
-class MeasurementFrame(ttk.Frame):
+class MeasurementFrame(ctk.CTkFrame):
 
     global dp
 
     def __init__(self, parent=None, DEBUG=False):
-        # ttk.Frame.__init__(self, parent)
         super().__init__(parent)
-
-        # Pack the Frame
-        # self.pack(expand=True, fill='both')
+        
+        # 'self' in this context is CTkFrame, so we can configure it
+        self.configure(fg_color='transparent')
+        self.pack(expand=True, fill='both')
 
         self.DEBUG = DEBUG
         self.comm = None
@@ -419,84 +400,64 @@ class MeasurementFrame(ttk.Frame):
         self.buildFrame()
 
     def buildFrame(self):
-        measFrm = ttk.Frame(self)
-        btnFrm = ttk.Frame(self)        
+        # measFrm = ctk.CTkFrame(self, fg_color='yellow', border_color='red', border_width=1)
+        # btnFrm = ctk.CTkFrame(self, fg_color='transparent', border_color='red', border_width=1)
+        measFrm = ctk.CTkFrame(self, fg_color='transparent')
+        btnFrm = ctk.CTkFrame(self, fg_color='transparent')
 
-        measFrm.place(x=0, rely=0.05, relwidth=.7, relheight=1)
-        btnFrm.place(relx=0.7, rely=0.2, relwidth=.3, relheight=.6)
+        measFrm.place(relx=0, rely=0.1, relwidth=.6, relheight=.8)
+        btnFrm.place(relx=0.6, rely=0.1, relwidth=.4, relheight=.8)
 
         # create the grid
         measFrm.rowconfigure((0, 1, 2, 3, 4), weight=1, uniform='a')
-        measFrm.columnconfigure((0, 1, 2), weight=1)
-
+        measFrm.columnconfigure((0,2), weight=1)
+        measFrm.columnconfigure(1, weight=2)
 
         # ROW 1. Labels for: shunt voltage, measurement value and unit
-        ttk.Label(measFrm, text='Vshunt', font=('Helvetica', 10)).grid(
-            row=0, column=0, padx=5, pady=5, sticky='e')
-        self.vshunt_lbl = ttk.Label(measFrm, text="0", relief='sunken', width=20,
-                                    anchor='e', foreground='black', background='#f8f8f8', font=('Helvetica', 11))
+        ctk.CTkLabel(measFrm, text='Vshunt', font=('Helvetica', 14)).grid(row=0, column=0, padx=5, pady=5, sticky='e')
+        self.vshunt_lbl = ctk.CTkLabel(measFrm, text="---", anchor='e',width=20, font=('Helvetica', 16))
         self.vshunt_lbl.grid(row=0, column=1, padx=5, pady=10, sticky='we')
-        ttk.Label(measFrm, text='mV').grid(
-            row=0, column=2, padx=10, pady=5, sticky='w')
+        ctk.CTkLabel(measFrm, text='mV', font=('Helvetica', 14)).grid(row=0, column=2, padx=10, pady=5, sticky='w')
 
         # ROW 2. Labels for: bus voltage, measurement value  and unit
-        ttk.Label(measFrm, text='Vbus', font=('Helvetica', 10)).grid(
-            row=1, column=0, padx=5, pady=5, sticky='e')
-
-        self.vbus_lbl = ttk.Label(measFrm, text="0", relief='sunken', width=20,
-                                  anchor='e', foreground='black', background='#f8f8f8', font=('Helvetica', 11))
-        self.vbus_lbl.grid(row=1, column=1, padx=5,
-                           pady=10, sticky='we')
-        ttk.Label(measFrm, text='V').grid(
-            row=1, column=2, padx=10, pady=5, sticky='w')
+        ctk.CTkLabel(measFrm, text='Vbus', font=('Helvetica', 14)).grid(row=1, column=0, padx=5, pady=5, sticky='e')
+        self.vbus_lbl = ctk.CTkLabel(measFrm, text="---", anchor='e', width=20, font=('Helvetica',16))
+        self.vbus_lbl.grid(row=1, column=1, padx=5, pady=10, sticky='we')
+        ctk.CTkLabel(measFrm, text='V', font=('Helvetica', 14)).grid(row=1, column=2, padx=10, pady=5, sticky='w')
 
         # ROW 3. Labels for: current, value and unit
-        ttk.Label(measFrm, text='Current', font=('Helvetica', 10)).grid(
-            row=2, column=0, padx=5, pady=5, sticky='e')
-        self.i_lbl = ttk.Label(measFrm, text="0", relief='sunken', width=20,
-                               anchor='e', foreground='black', background='#f8f8f8', font=('Helvetica', 11))
+        ctk.CTkLabel(measFrm, text='Current', font=('Helvetica', 14)).grid(row=2, column=0, padx=5, pady=5, sticky='e')
+        self.i_lbl = ctk.CTkLabel(measFrm, text="---", anchor='e', width=20, font=('Helvetica',16))
         self.i_lbl.grid(row=2, column=1, padx=5, pady=10, sticky='we')
-        self.i_mA_lbl = ttk.Label(measFrm, text='A')
+        self.i_mA_lbl = ctk.CTkLabel(measFrm, text='A', font=('Helvetica', 14))
         self.i_mA_lbl.grid(row=2, column=2, padx=10, pady=5, sticky='w')
 
         # ROW 4. Labels for: power, value and unit
-        ttk.Label(measFrm, text='Power', font=('Helvetica', 10)).grid(
-            row=3, column=0, padx=5, pady=5, sticky='e')
-        self.p_lbl = ttk.Label(measFrm, text="0", relief='sunken', width=20,
-                               anchor='e', foreground='black', background='#f8f8f8', font=('Helvetica', 11))
+        ctk.CTkLabel(measFrm, text='Power', font=('Helvetica', 14)).grid(row=3, column=0, padx=5, pady=5, sticky='e')
+        self.p_lbl = ctk.CTkLabel(measFrm, text="---", anchor='e', width=20, font=('Helvetica',16))
         self.p_lbl.grid(row=3, column=1, padx=5, pady=10, sticky='we')
-        self.p_mW_lbl = ttk.Label(measFrm, text='mW')
+        self.p_mW_lbl = ctk.CTkLabel(measFrm, text='mW', font=('Helvetica', 14))
         self.p_mW_lbl.grid(row=3, column=2, padx=10, pady=5, sticky='w')
 
         # ROW 5. Labels for: calculated load resistance value and unit
-        ttk.Label(measFrm, text='R load', font=('Helvetica', 10)).grid(
-            row=4, column=0, padx=5, pady=5, sticky='e')
-        self.rload_lbl = ttk.Label(measFrm, text="0", relief='flat', width=20,
-                               anchor='e', foreground='black', background='#f8f8f8', font=('Helvetica', 11))
+        ctk.CTkLabel(measFrm, text='R load', font=('Helvetica', 14)).grid(row=4, column=0, padx=5, pady=5, sticky='e')
+        self.rload_lbl = ctk.CTkLabel(measFrm, text="---", anchor='e', width=20, font=('Helvetica',16))
         self.rload_lbl.grid(row=4, column=1, padx=5, pady=10, sticky='we')
-        ttk.Label(measFrm, text='Ohm').grid(
-            row=4, column=2, padx=10, pady=5, sticky='w')
+        ctk.CTkLabel(measFrm, text='Ohm', font=('Helvetica', 14)).grid(row=4, column=2, padx=10, pady=5, sticky='w')
 
-        self.btn_start_meas = tk.Button(
-            # btnFrm, text='START', width=10, command=self.start_stop)  # removed font=('Helvetica bold', 18),
-            btnFrm, text='START', width=10, font=('Helvetica bold', 18), command=self.start_stop)  # removed font=('Helvetica bold', 18),
-        self.btn_start_meas.pack(expand=True, padx=20, pady=10, ipadx=30, ipady=30)
-        
-        # self.btn_start_meas.grid(
-        #     row=4, column=1, padx=10, pady=10, sticky='we')
+        # Right side of the frame for the START/STOP button
+        self.btn_start_meas = ctk.CTkButton(
+            btnFrm, text='START', width=20, font=('Helvetica bold', 24), command=self.start_stop)
+        self.btn_start_meas.pack(expand=True, padx=30, pady=10, ipadx=30, ipady=40)
 
         if self.DEBUG:
-            self.test_btn = ttk.Button(measFrm, text='Test Values',
-                                       width=10, command=self.test_func)
+            self.test_btn = ctk.CTkButton(measFrm, text='Test Values', command=self.test_func)
             self.test_btn.grid(row=6, column=0, padx=5, pady=10, columnspan=1)
-            self.test_lbl = ttk.Label(
-                measFrm, text="debug message", anchor='w', justify='center')
-            self.test_lbl.grid(row=6, column=1, padx=5,
-                               pady=10, sticky='we', columnspan=3)
+            self.test_lbl = ctk.CTkLabel(measFrm, text="debug message", anchor='w')
+            self.test_lbl.grid(row=6, column=1, padx=5, pady=10, sticky='e', columnspan=3)
             # print parameters available for a tkinter Label
             # print(self.test_lbl.configure().keys())
-            self.test_lbl.config(relief='sunken', background='#fff',
-                                 width=40, font=('Helvetica', 10))
+            # self.test_lbl.configure(fg_color='#bbb')
 
     def start_stop(self):
         """When the START button was pressed start the measurement process. This function is rule driven \
@@ -504,17 +465,17 @@ class MeasurementFrame(ttk.Frame):
 
         if self.meas_in_progress:
             self.meas_in_progress = False
-            self.btn_start_meas.config(text='START')
+            self.btn_start_meas.configure(text='START')
             return
 
         rule_set = self.meas_rules[dp.mode]
         self.get_a_measurement(rule_set[0], rule_set[1], rule_set[2], rule_set[3])
         self.meas_in_progress = rule_set[4]
         if rule_set[4]:
-            self.btn_start_meas.config(text='STOP')
+            self.btn_start_meas.configure(text='STOP')
             self.after(500, self.update_measurement)
         else:
-            self.btn_start_meas.config(text='START')
+            self.btn_start_meas.configure(text='START')
 
     # Interrupt at periodic intervals
     def update_measurement(self):
@@ -533,45 +494,42 @@ class MeasurementFrame(ttk.Frame):
         if get_vs:
             v_sh = dp.read_shunt_voltage()
             if v_sh > dp.vshunt_range_tbl[dp.pg]:
-                self.vshunt_lbl.config(foreground='red')
+                self.vshunt_lbl.configure(fg_color='yellow', width=20)
             else:
-                self.vshunt_lbl.config(foreground='black')
-            self.vshunt_lbl['text'] = f'{1e3*v_sh:0.3f}'
+                self.vshunt_lbl.configure(fg_color='transparent', width=20)
+            self.vshunt_lbl.configure(text=f'{1e3*v_sh:0.3f}')
 
         if get_vb:
             v_b = dp.read_bus_voltage()
             if v_b > dp.vbus_range_tbl[dp.brng]:
-                self.vbus_lbl.config(foreground='red')
+                self.vbus_lbl.configure(fg_color='yellow')
             else:
-                self.vbus_lbl.config(foreground='black')
-            self.vbus_lbl['text'] = f'{v_b:0.3f}'
+                self.vbus_lbl.configure(fg_color='transparent')
+            self.vbus_lbl.configure(text=f'{v_b:0.3f}')
 
         if get_i:
             cur = dp.read_current()
-            # self.i_lbl.config(text=f'{cur:0.3f}')
             if cur < 1:
-                self.i_lbl.config(text=f'{cur*1000:0.0f}')
-                self.i_mA_lbl.config(text='mA')
+                self.i_lbl.configure(text=f'{cur*1000:0.0f}')
+                self.i_mA_lbl.configure(text='mA')
             else:
-                self.i_lbl.config(text=f'{cur:0.3f}')
-                self.i_mA_lbl.config(text='A')
+                self.i_lbl.configure(text=f'{cur:0.3f}')
+                self.i_mA_lbl.configure(text='A')
 
         if get_p:
             pwr = dp.read_power()
-            # self.p_lbl.config(text=f'{pwr:0.3f}')
             if pwr/1000 < 1:
-                self.p_lbl.config(text=f'{pwr:0.0f}')
-                self.p_mW_lbl.config(text='mW')
+                self.p_lbl.configure(text=f'{pwr:0.0f}')
+                self.p_mW_lbl.configure(text='mW')
             else:
-                self.p_lbl.config(text=f'{pwr/1e3:0.3f}')
-                self.p_mW_lbl.config(text='W')
+                self.p_lbl.configure(text=f'{pwr/1e3:0.3f}')
+                self.p_mW_lbl.configure(text='W')
             # calculate the value of the load resistance
             try:
                 Rcalc = pwr*1e-3 / dp.read_current()**2
-                self.rload_lbl.config(text=f'{Rcalc:.1f}')
+                self.rload_lbl.configure(text=f'{Rcalc:.1f}')
             except ZeroDivisionError:
-                self.rload_lbl.config(text='---')
-                # self.p_mW_lbl.config(text='---')
+                self.rload_lbl.configure(text='---')
                 print('current is 0. Division by 0')
                 return
 
@@ -580,26 +538,27 @@ class MeasurementFrame(ttk.Frame):
         OPT = True
         if OPT:
             vals = dp.readRegisters()
-            self.test_lbl.config(text=vals)
+            self.test_lbl.configure(text=vals)
         else:
             Rcalc = dp.read_power()*1e-3 / dp.read_current()**2
-            self.test_lbl.config(text=f'{Rcalc:.1f} Ohm')
+            self.test_lbl.configure(text=f'{Rcalc:.1f} Ohm')
 
 
-class ConfigFrame(ttk.Frame):
+class ConfigFrame(ctk.CTkFrame):
 
     global dp
 
     def __init__(self, parent=None, DEBUG=False):
-        # ttk.Frame.__init__(self, parent)
         super().__init__(parent)
 
-        # Pack the Frame
-        self.pack(expand=True, fill='both')
+        # 'self' in this context is CTkFrame, so we can configure it
+        self.configure(fg_color='transparent')
+        self.place(relx=0.1, rely=0.1, relwidth=.8, relheight=.8)
+        # self.pack(expand=True, fill='both')
 
         self.DEBUG = DEBUG
         self.comm = None
-        self.chk_var = tk.IntVar()
+        self.chk_var = ctk.IntVar()
         self.adc_conv_time = ['72us', '132us', '258us', '508us', '1.01ms',
                               '2.01ms', '4.01ms', '8.01ms', '16.01ms', '32.01ms', '64.01ms']
         self.bus_vrange = ['16V', '32V', '60V']
@@ -609,86 +568,74 @@ class ConfigFrame(ttk.Frame):
                               'ADC off (disabled)', 'Shunt voltage (cont)',
                               'Bus voltge (cont)', 'Shunt and Bus (cont)']
 
+        self.myComboBoxSelection = ctk.StringVar()  #! This is to deal with ComboBox selection issue
+
         # *** THIS MUST BE THE VERY LAST COMMAND if we are to use the params defined above ***
         self.buildFrame()
 
     def buildFrame(self):
 
-        configFrm = ttk.Frame(self)
-        configFrm.place(relx=0.0, rely=0.1, relwidth=1, relheight=1)
+        configFrm = ctk.CTkFrame(self)
+        configFrm.place(relx=0.0, rely=0, relwidth=1, relheight=.9)
+        # configFrm.place(relx=0.01, rely=0.1, relwidth=.98, relheight=.8)
 
         # lblFrm = ttk.Frame(self)
         # lblFrm.place(relx=0.7, rely=0.05, relwidth=.3, relheight=1)
-        # ttk.Label(lblFrm, text='TEST', background='red').pack(expand=True, fill='both')
+        # ctk.CTkLabel(lblFrm, text='TEST', fg_color='red').pack(expand=True, fill='both')
 
-        ttk.Label(configFrm, text='Conversion Time',font=('Helvetica bold', 11)).grid(
+        ctk.CTkLabel(configFrm, text='Conversion Time', font=('Helvetica', 16)).grid(
             row=0, column=1, padx=20, pady=5, sticky='we')
 
-        ttk.Label(configFrm, text='Range',font=('Helvetica bold', 11)).grid(
+        ctk.CTkLabel(configFrm, text='Range', font=('Helvetica', 16)).grid(
             row=0, column=2, padx=20, pady=5, sticky='we')
 
-        ttk.Label(configFrm, text='Vbus',font=('Helvetica', 10)).grid(
+        ctk.CTkLabel(configFrm, text='Vbus', font=('Helvetica', 14)).grid(
             row=1, column=0, padx=5, pady=10, sticky='e')
 
-        ttk.Label(configFrm, text='Vshunt',font=('Helvetica', 10)).grid(
+        ctk.CTkLabel(configFrm, text='Vshunt', font=('Helvetica', 14)).grid(
             row=2, column=0, padx=5, pady=10, sticky='e')
 
-        ttk.Label(configFrm, text='Mode',font=('Helvetica', 10)).grid(
+        ctk.CTkLabel(configFrm, text='Mode', font=('Helvetica', 14)).grid(
             row=3, column=0, padx=5, pady=10, sticky='e')
 
-        self.bus_conv_time_cb = ttk.Combobox(
-            configFrm, width=12, values=self.adc_conv_time,font=('Helvetica', 10))
+        self.bus_conv_time_cb = ctk.CTkComboBox(configFrm, values=self.adc_conv_time, command=self.get_combo_selection, font=('Helvetica', 14))
         self.bus_conv_time_cb.grid(row=1, column=1, padx=20, sticky='e')
         self.bus_conv_time_cb.set(self.adc_conv_time[3])
 
-        self.bus_vrange_cb = ttk.Combobox(
-            configFrm, width=12, values=self.bus_vrange,font=('Helvetica', 10))
+        self.bus_vrange_cb = ctk.CTkComboBox(configFrm, values=self.bus_vrange, command=self.get_combo_selection, font=('Helvetica', 14))
         self.bus_vrange_cb.grid(row=1, column=2, padx=20, sticky='e')
         self.bus_vrange_cb.set(self.bus_vrange[1])
 
-        self.sh_conv_time_cb = ttk.Combobox(
-            configFrm, width=12, values=self.adc_conv_time,font=('Helvetica', 10))
+        self.sh_conv_time_cb = ctk.CTkComboBox(configFrm, values=self.adc_conv_time, command=self.get_combo_selection, font=('Helvetica', 14))
         self.sh_conv_time_cb.grid(row=2, column=1, padx=20, sticky='e')
         self.sh_conv_time_cb.set(self.adc_conv_time[2])
 
-        self.sh_vrange_cb = ttk.Combobox(
-            configFrm, width=12, values=self.sh_vrange,font=('Helvetica', 10))
+        self.sh_vrange_cb = ctk.CTkComboBox(configFrm, values=self.sh_vrange, command=self.get_combo_selection, font=('Helvetica', 14))
         self.sh_vrange_cb.grid(row=2, column=2, padx=20, sticky='e')
         self.sh_vrange_cb.set(self.sh_vrange[0])
 
-        self.conv_mode_cb = ttk.Combobox(
-            configFrm, width=8, values=self.adc_conv_mode,font=('Helvetica', 10))
-        self.conv_mode_cb.grid(
-            row=3, column=1, columnspan=2, padx=20, pady=10, sticky='we')
+        self.conv_mode_cb = ctk.CTkComboBox(configFrm, values=self.adc_conv_mode, command=self.get_combo_selection, font=('Helvetica', 14))
+        self.conv_mode_cb.grid(row=3, column=1, columnspan=2, padx=20, pady=10, sticky='we')
         self.conv_mode_cb.set(self.adc_conv_mode[7])
 
-        ttk.Label(configFrm, text='Rshunt Value (Ohm)',font=('Helvetica', 10)).grid(
+        ctk.CTkLabel(configFrm, text='Rshunt Value (Ohm)', font=('Helvetica', 14)).grid(
             row=4, column=0, padx=5, pady=10, sticky='e')
-        self.ent_rshunt = ttk.Label(configFrm, text=dp.rshunt, relief='ridge', background='#fff', anchor='e', takefocus=True, font=('Helvetica', 11))
+        self.ent_rshunt = ctk.CTkLabel(configFrm, text=dp.rshunt, anchor='center', takefocus=True, font=('Helvetica', 16))
         self.ent_rshunt.grid(row=4, column=1, columnspan=2,
                              padx=20, pady=10, sticky='we')
-        # ttk.Label(configFrm, text='Ohm').grid(
-        #     row=4, column=3, pady=5, sticky='w')
 
-        ttk.Label(configFrm, text='Config Reg',font=('Helvetica', 10)).grid(
-            row=5, column=0, padx=5, pady=10, sticky='e')
-        self.cfg_reg_lbl = ttk.Label(configFrm, text='', anchor='center',font=('Helvetica', 11))
-        self.cfg_reg_lbl.grid(row=5, column=1, padx=20,
-                              pady=5, sticky='we', columnspan=2)
-        self.cfg_reg_lbl.config(
-            relief='flat', width=28, font=('Helvetica', 11))
+        ctk.CTkLabel(configFrm, text='Config Reg', font=('Helvetica', 14)).grid(row=5, column=0, padx=5, pady=10, sticky='e')
+        self.cfg_reg_lbl = ctk.CTkLabel(configFrm, text='', anchor='center', font=('Helvetica', 16))
+        self.cfg_reg_lbl.grid(row=5, column=1, padx=20, pady=5, sticky='we', columnspan=2)
         self.set_config_reg_label()
 
         if self.DEBUG:
-            self.test_btn = ttk.Button(configFrm, text='Read test',
-                                       width=10, command=self.testRead)
+            self.test_btn = ctk.CTkButton(configFrm, text='Read test', width=10, command=self.testRead)
             self.test_btn.grid(row=7, column=0, padx=5, pady=20, columnspan=1)
-            self.test_lbl = ttk.Label(
-                configFrm, text="debug message", anchor='w')
+            self.test_lbl = ctk.CTkLabel(configFrm, text="debug message", anchor='w')
             self.test_lbl.grid(row=7, column=1, padx=5,
                                pady=30, sticky='we', columnspan=3)
-            self.test_lbl.config(relief='sunken', background='#fff',
-                                 width=40, font=('Helvetica', 10))
+            self.test_lbl.configure(fg_color='#fff', width=40)
 
         # When the label gets focus and the <Return> key was pressed or mouse-click open a new dialog
         self.ent_rshunt.bind('<FocusIn>', self.entry_lbl_focus_in)  # change appearnace when ready for editing
@@ -706,22 +653,24 @@ class ConfigFrame(ttk.Frame):
 
     def get_combo_selection(self, event):
         '''When an element in the combo box was selected get the index of all combo boxes and save them as\
-            dmp attributes. Based on the values, calculate the register value and present it in binary and hex\
+            dp attributes. Based on the values, calculate the register value and present it in binary and hex\
             Finally, apply the selections to the Measurement window'''
-        dp.brng = self.bus_vrange_cb.current()
-        dp.pg = self.sh_vrange_cb.current()
-        dp.badc = self.bus_conv_time_cb.current()
-        dp.sadc = self.sh_conv_time_cb.current()
-        dp.mode = self.conv_mode_cb.current()
+        dp.brng = self.bus_vrange.index(self.bus_vrange_cb.get())
+        dp.pg = self.sh_vrange.index(self.sh_vrange_cb.get())
+        dp.badc = self.adc_conv_time.index(self.bus_conv_time_cb.get())
+        dp.sadc = self.adc_conv_time.index(self.sh_conv_time_cb.get())
+        dp.mode = self.adc_conv_mode.index(self.conv_mode_cb.get())
+        # print(dp.brng, dp.pg, dp.badc, dp.sadc, dp.mode)
         self.set_config_reg_label()
         self.apply_dpm_config()
 
+
     def entry_lbl_focus_in(self, event):
-        self.ent_focus_colors = self.ent_rshunt.cget('background')  # Try background, border color/width, etc.
-        self.ent_rshunt.config(background='#99ccff')
+        self.ent_focus_colors = self.ent_rshunt.cget('fg_color')  # Try background, border color/width, etc.
+        self.ent_rshunt.configure(fg_color='#99ccff')
 
     def entry_lbl_focus_out(self, event):
-        self.ent_rshunt.config(background=self.ent_focus_colors)
+        self.ent_rshunt.configure(fg_color=self.ent_focus_colors)
     
     def validate_rshunt_val(self, event):
         # check if 'OK' or 'Cancel' was pressed
@@ -731,7 +680,8 @@ class ConfigFrame(ttk.Frame):
             # If 'OK' was pressed, update the combo box
             dp.rshunt = inp
             # self.ent_rshunt['text'] = f'{dp.rshunt} Ohm'
-            self.ent_rshunt['text'] = dp.rshunt
+            self.ent_rshunt.configure(text=dp.rshunt)
+            # self.ent_rshunt['text'] = dp.rshunt
             self.ent_rshunt.tk_focusNext().focus()  # Must move focus next widget
             self.apply_dpm_config()
         self.ent_rshunt.tk_focusNext().focus()  # Must move focus next, otherwise cannot move on in case of 'Cancel"
@@ -742,59 +692,44 @@ class ConfigFrame(ttk.Frame):
         b = f'0 {dp.brng:02b} {dp.pg:02b} {dp.badc:04b} {dp.sadc:04b} {dp.mode:03b}'
         w = (dp.brng << 13) | (dp.pg << 11) | (
             dp.badc << 7) | (dp.sadc << 3) | dp.mode
-        lbl_text = b + f' = {w:04X}h'
-        self.cfg_reg_lbl.config(text=lbl_text)
+        lbl_text = b + f' [{w:04X} hex]'
+        self.cfg_reg_lbl.configure(text=lbl_text)
 
     def apply_dpm_config(self):
         """When a new selection was made on the Configuration Tab, update the appearance of the fields\
             in the measurement window"""
         measFrm.meas_in_progress = False
-        measFrm.btn_start_meas.config(text='START')
+        measFrm.btn_start_meas.configure(text='START')
 
         # Actions to do depending on the value of the MODE BITS
         if dp.mode == 0 or dp.mode == 4:
             # Power Down, ADC OFF
-            measFrm.vshunt_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.vbus_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.i_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.p_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.rload_lbl.config(text='---', state='disabled', background='#e0e0e0')
+            measFrm.vshunt_lbl.configure(text='---', state='disabled')
+            measFrm.vbus_lbl.configure(text='---', state='disabled')
+            measFrm.i_lbl.configure(text='---', state='disabled')
+            measFrm.p_lbl.configure(text='---', state='disabled')
+            measFrm.rload_lbl.configure(text='---', state='disabled')
 
         elif dp.mode == 1 or dp.mode == 5:
-            measFrm.vshunt_lbl.config(
-                text='---', state='normal', background='#f8f8f8')
-            measFrm.vbus_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
-            measFrm.i_lbl.config(text='---', state='normal',
-                                 background='#f8f8f8')
-            measFrm.p_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
-            measFrm.rload_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
+            measFrm.vshunt_lbl.configure(text='---', state='normal')
+            measFrm.vbus_lbl.configure(text='---', state='disabled')
+            measFrm.i_lbl.configure(text='---', state='normal')
+            measFrm.p_lbl.configure(text='---', state='disabled')
+            measFrm.rload_lbl.configure(text='---', state='disabled')
 
         elif dp.mode == 2 or dp.mode == 6:
-            measFrm.vshunt_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
-            measFrm.vbus_lbl.config(
-                text='---', state='normal', background='#f8f8f8')
-            measFrm.i_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
-            measFrm.p_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
-            measFrm.rload_lbl.config(
-                text='---', state='disabled', background='#e0e0e0')
+            measFrm.vshunt_lbl.configure(text='---', state='disabled')
+            measFrm.vbus_lbl.configure(text='---', state='normal')
+            measFrm.i_lbl.configure(text='---', state='disabled')
+            measFrm.p_lbl.configure(text='---', state='disabled')
+            measFrm.rload_lbl.configure(text='---', state='disabled')
 
         else:
-            measFrm.vshunt_lbl.config(
-                text='---', state='normal', background='#f8f8f8')
-            measFrm.vbus_lbl.config(
-                text='---', state='normal', background='#f8f8f8')
-            measFrm.i_lbl.config(text='---', state='normal',
-                                 background='#f8f8f8')
-            measFrm.p_lbl.config(text='---', state='normal',
-                                 background='#f8f8f8')
-            measFrm.rload_lbl.config(text='---', state='normal',
-                                 background='#f8f8f8')
+            measFrm.vshunt_lbl.configure(text='---', state='normal')
+            measFrm.vbus_lbl.configure(text='---', state='normal')
+            measFrm.i_lbl.configure(text='---', state='normal')
+            measFrm.p_lbl.configure(text='---', state='normal')
+            measFrm.rload_lbl.configure(text='---', state='normal')
 
         dp.prog_config_reg()  # programs the DPM Configuration Register
         dp.prog_calib_reg()  # programs the DPM Calibration Register
@@ -802,9 +737,9 @@ class ConfigFrame(ttk.Frame):
     def testRead(self):
         # displays the values of configuration Tab in this label
         vals = f'brng={dp.brng} pg={dp.pg} badc={dp.badc} sadc={dp.sadc} mode={dp.mode} rval={dp.rshunt}'
-        self.test_lbl.config(text=vals)
+        self.test_lbl.configure(text=vals)
 
 
 if __name__ == "__main__":
 
-    app = App('Digital Power Monitoring (DPM) Dashboard App', (640, 380))
+    app = App('Digital Power Monitoring (DPM) Dashboard App', (680, 480))

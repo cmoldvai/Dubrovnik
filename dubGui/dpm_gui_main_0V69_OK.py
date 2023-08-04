@@ -384,6 +384,8 @@ class SerComFrame(ttk.Frame):
         configFrm.conv_mode_cb.set(configFrm.adc_conv_mode[dp.mode])
         # configFrm.rshunt_var.set(dp.rshunt)
         configFrm.ent_rshunt['text'] = dp.rshunt
+        # Aslo update the Config Register Label with fresh values
+        configFrm.set_config_reg_label()
    
     def testSerComm(self):
         serParams = '%s, baud=%d, bytes=%1d,\nparity=%s, stop=%1d, protocol=%s' \
@@ -529,6 +531,9 @@ class MeasurementFrame(ttk.Frame):
             For example, if get_vs=True, read the shunt voltage register and display it in the label\
             Before each measurement the CNVR (Conversion Ready) bit must be cleared."""
         dp.prog_config_reg()  # Clear CNVR Conversion Ready (Bit 1)
+
+        #! Not sure if this belongs here, but we need to initialize the chip after connecting (I guess)        
+        dp.prog_calib_reg()   # Sometimes when starting the program we mesaure 0mA, 0mW, calib reg = 0x0
 
         if get_vs:
             v_sh = dp.read_shunt_voltage()
@@ -754,11 +759,16 @@ class ConfigFrame(ttk.Frame):
         # Actions to do depending on the value of the MODE BITS
         if dp.mode == 0 or dp.mode == 4:
             # Power Down, ADC OFF
-            measFrm.vshunt_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.vbus_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.i_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.p_lbl.config(text='---', state='disabled', background='#e0e0e0')
-            measFrm.rload_lbl.config(text='---', state='disabled', background='#e0e0e0')
+            measFrm.vshunt_lbl.config(
+                text='---', state='disabled', background='#e0e0e0')
+            measFrm.vbus_lbl.config(
+                text='---', state='disabled', background='#e0e0e0')
+            measFrm.i_lbl.config(
+                text='---', state='disabled', background='#e0e0e0')
+            measFrm.p_lbl.config(
+                text='---', state='disabled', background='#e0e0e0')
+            measFrm.rload_lbl.config(
+                text='---', state='disabled', background='#e0e0e0')
 
         elif dp.mode == 1 or dp.mode == 5:
             measFrm.vshunt_lbl.config(

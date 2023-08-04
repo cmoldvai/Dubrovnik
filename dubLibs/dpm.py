@@ -33,8 +33,7 @@ class DpmEK():
         the values of its fields: BRNG, PG, BADC, SADC and MODE. Then it writes the generated value
         into the config register. The config register field values are the arguments to the function.
         (old name: set_config)'''
-        w = (self.brng << 13) | (self.pg << 11) | (
-            self.badc << 7) | (self.sadc << 3) | self.mode
+        w = (self.brng << 13) | (self.pg << 11) | (self.badc << 7) | (self.sadc << 3) | self.mode
         # print(f'{w:x}')
         self.comm.send(f'wr 0 {w:x}')
 
@@ -43,7 +42,7 @@ class DpmEK():
         value based on equations described in the datasheet. Note that these equations can be be simplified
         as shown below. At the end the calibration value depends only on the shunt voltage range or Vshunt
         Full Scale (VshuntFS) which can be obtained from the PG field of the config register. This field's
-        value is the argument to this function. 
+        value is the argument to this function.
         (old name: set_calibration)
         Below we develop the datasheet equations:
 
@@ -177,7 +176,7 @@ class DpmEK():
             power = power * 2
         return power
 
-    def readRegisters(self):
+    def read_registers(self):
         vals = []
         for n in range(10):
             self.comm.send(f'rr {n:x}')
